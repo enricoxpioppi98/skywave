@@ -1,0 +1,19 @@
+{
+  "name": "skywave",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Real-time HF radio propagation map. Worker polls wspr.live, Next.js renders animated arcs via Supabase Realtime.",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace apps/web",
+    "dev:worker": "npm run dev --workspace apps/worker",
+    "build:web": "npm run build --workspace apps/web",
+    "build:worker": "npm run build --workspace apps/worker",
+    "start:worker": "npm run start --workspace apps/worker"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
