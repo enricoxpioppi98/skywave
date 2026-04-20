@@ -1,28 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { DEFAULT_FAVORITE_BANDS } from "@/lib/bands";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-
-  // Ensure preferences row exists — create default on first login.
-  const { data: prefs } = await supabase
-    .from("user_preferences")
-    .select("*")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!prefs) {
-    await supabase.from("user_preferences").insert({
-      user_id: user.id,
-      listening_post_grid: "FN31",
-      favorite_bands: DEFAULT_FAVORITE_BANDS,
-      callsign: null,
-    });
-  }
 
   return (
     <div className="flex-1 flex flex-col">

@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Spot, UserPreferences } from "@/lib/types";
+import type { Spot } from "@/lib/types";
+import { getOrCreatePreferences } from "@/lib/prefs";
 import Dashboard from "@/components/Dashboard";
 
 export const dynamic = "force-dynamic";
@@ -9,11 +10,7 @@ export default async function LivePage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: prefs } = await supabase
-    .from("user_preferences")
-    .select("*")
-    .eq("user_id", user.id)
-    .single();
+  const prefs = await getOrCreatePreferences(supabase, user.id);
 
   const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
   const { data: spots } = await supabase
@@ -26,7 +23,7 @@ export default async function LivePage() {
   return (
     <Dashboard
       initialSpots={(spots ?? []) as Spot[]}
-      prefs={prefs as UserPreferences}
+      prefs={prefs}
     />
   );
 }
