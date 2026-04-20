@@ -16,31 +16,35 @@ export interface RawWsprSpot {
   rx_lat: number;
   rx_lon: number;
   rx_loc: string;
-  distance: number;    // km
+  distance: number;
   azimuth: number;
   snr: number;
-  power: number;       // dBm
+  power: number;
   drift: number;
 }
 
 /**
- * Fetch recent WSPR spots observed after the given ISO timestamp.
- * Inclusive-exclusive: returns rows where time > sinceUtcSeconds.
+ * Fetch WSPR spots from the last `lookbackSec` seconds (sliding window).
+ *
+ * wspr.live publishes spots in minute-aligned batches with variable latency —
+ * a cursor-based query systematically loses late arrivals whose `time` falls
+ * earlier than the cursor we've already advanced past. A fixed-lookback
+ * window paired with upsert-ignore-on-id gives us idempotent catch-up.
  */
-export async function fetchSpotsSince(sinceUtcSeconds: number, limit: number): Promise<RawWsprSpot[]> {
+export async function fetchRecentSpots(lookbackSec: number, limit: number): Promise<RawWsprSpot[]> {
   const sql =
     `SELECT id, time, band, frequency, tx_sign, tx_lat, tx_lon, tx_loc, ` +
     `rx_sign, rx_lat, rx_lon, rx_loc, distance, azimuth, snr, power, drift ` +
     `FROM wspr.rx ` +
-    `WHERE time > toDateTime(${sinceUtcSeconds}) ` +
-    `ORDER BY time ASC ` +
+    `WHERE time > now() - interval ${lookbackSec} second ` +
+    `ORDER BY time DESC ` +
     `LIMIT ${limit} ` +
     `FORMAT JSONEachRow`;
 
   const url = `${WSPR_ENDPOINT}?query=${encodeURIComponent(sql)}`;
   const res = await fetch(url, {
     method: "GET",
-    signal: AbortSignal.timeout(20_000),
+    signal: AbortSignal.timeout(30_000),
     headers: { "User-Agent": "skywave/0.1 (https://github.com/)" },
   });
 
@@ -57,8 +61,7 @@ export async function fetchSpotsSince(sinceUtcSeconds: number, limit: number): P
     if (!line.trim()) continue;
     try {
       rows.push(JSON.parse(line) as RawWsprSpot);
-    } catch (err) {
-      // Skip malformed lines but log the first one for debugging.
+    } catch {
       if (rows.length === 0) throw new Error(`wspr.live JSON parse: ${line.slice(0, 120)}`);
     }
   }

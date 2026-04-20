@@ -146,15 +146,6 @@ export default function Globe({
         radius: 0.55,
         altitude: 0.01,
       },
-      {
-        lat: sunPos.lat,
-        lng: sunPos.lon,
-        color: SUN_COLOR,
-        label: "sun",
-        role: "sun",
-        radius: 0.9,
-        altitude: 0.04,
-      },
     ];
     const seen = new Set<string>();
     for (const s of spots) {
@@ -197,6 +188,34 @@ export default function Globe({
     const coords = path.map(([lon, lat]) => [lat, lon, 0.005] as [number, number, number]);
     return [{ path: coords }];
   }, [sunPos]);
+
+  // Subsolar point as an HTML element — a compact glowing sun glyph that
+  // reads as "the sun is here" rather than an opaque three.js capsule.
+  const sunElements = useMemo(
+    () => [{ lat: sunPos.lat, lng: sunPos.lon }],
+    [sunPos.lat, sunPos.lon],
+  );
+  const makeSunElement = useCallback(() => {
+    const el = document.createElement("div");
+    el.style.cssText = [
+      "width: 28px",
+      "height: 28px",
+      "border-radius: 50%",
+      "background: radial-gradient(circle, #fff4b8 0%, #ffd166 45%, rgba(255,187,92,0) 75%)",
+      "box-shadow: 0 0 18px 6px rgba(255,209,102,0.45)",
+      "display: flex",
+      "align-items: center",
+      "justify-content: center",
+      "font-size: 14px",
+      "color: #3a2a00",
+      "pointer-events: auto",
+      "cursor: help",
+      "user-select: none",
+    ].join(";");
+    el.textContent = "☀";
+    el.title = "subsolar point — directly under the sun right now";
+    return el;
+  }, []);
 
   // Tick sun position every 60 s.
   useEffect(() => {
@@ -394,6 +413,12 @@ export default function Globe({
         pointLabel={((p: PointDatum) => pointLabelHtml(p)) as unknown as never}
         onPointClick={onPointClick}
         pointResolution={16}
+        htmlElementsData={sunElements}
+        htmlLat="lat"
+        htmlLng="lng"
+        htmlAltitude={0.01}
+        htmlElement={makeSunElement as unknown as never}
+        htmlTransitionDuration={800}
         ringsData={rings}
         ringLat="lat"
         ringLng="lng"

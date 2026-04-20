@@ -1,9 +1,16 @@
 import { env } from "./env.ts";
-import { fetchSpotsSince } from "./wspr.ts";
-import { deleteOldSpots, getMaxObservedAt, toSpotRow, upsertSpots } from "./supabase.ts";
+import { fetchRecentSpots } from "./wspr.ts";
+import { deleteOldSpots, toSpotRow, upsertSpots } from "./supabase.ts";
 import { log, logErr } from "./log.ts";
 
 const RETENTION_INTERVAL_MS = 5 * 60 * 1000;
+
+/**
+ * Fixed lookback window so we catch late-arriving spots that wspr.live
+ * publishes out of wall-clock order. Each poll re-fetches the window;
+ * upserts dedupe by primary key `id`.
+ */
+const LOOKBACK_SEC = 180; // 3 minutes
 
 let stopping = false;
 
@@ -11,46 +18,28 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function initialCursor(): Promise<number> {
-  const lastIso = await getMaxObservedAt();
-  if (lastIso) {
-    const secs = Math.floor(new Date(lastIso).getTime() / 1000);
-    log("skywave.worker.resume", { fromIso: lastIso });
-    return secs;
-  }
-  const twoMinAgo = Math.floor(Date.now() / 1000) - 120;
-  log("skywave.worker.cold_start", { fromUtc: new Date(twoMinAgo * 1000).toISOString() });
-  return twoMinAgo;
-}
-
-async function pollOnce(cursor: number): Promise<number> {
-  const rows = await fetchSpotsSince(cursor, env.batchLimit);
+async function pollOnce(): Promise<void> {
+  const rows = await fetchRecentSpots(LOOKBACK_SEC, env.batchLimit);
   if (rows.length === 0) {
-    log("skywave.poll.empty", { cursor });
-    return cursor;
+    log("skywave.poll.empty");
+    return;
   }
   const mapped = rows.map(toSpotRow);
   const inserted = await upsertSpots(mapped);
-  const newCursor = Math.max(
-    ...mapped.map((r) => Math.floor(new Date(r.observed_at).getTime() / 1000)),
-  );
   log("skywave.poll.ok", {
     fetched: rows.length,
     inserted,
-    fromUtc: new Date(cursor * 1000).toISOString(),
-    toUtc: new Date(newCursor * 1000).toISOString(),
+    lookbackSec: LOOKBACK_SEC,
   });
-  return newCursor;
 }
 
 async function pollLoop() {
-  let cursor = await initialCursor();
   let backoffMs = 1000;
   const maxBackoffMs = 5 * 60 * 1000;
 
   while (!stopping) {
     try {
-      cursor = await pollOnce(cursor);
+      await pollOnce();
       backoffMs = 1000;
       await sleep(env.pollIntervalSec * 1000);
     } catch (err) {
@@ -89,6 +78,8 @@ async function main() {
   log("skywave.worker.boot", {
     pollIntervalSec: env.pollIntervalSec,
     retentionHours: env.retentionHours,
+    lookbackSec: LOOKBACK_SEC,
+    batchLimit: env.batchLimit,
   });
   await Promise.all([pollLoop(), retentionLoop()]);
 }

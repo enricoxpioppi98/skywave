@@ -19,5 +19,5 @@ export const env = {
   supabaseServiceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
   pollIntervalSec: int("POLL_INTERVAL_SEC", 30),
   retentionHours: int("RETENTION_HOURS", 6),
-  batchLimit: int("BATCH_LIMIT", 2000),
+  batchLimit: int("BATCH_LIMIT", 10000),
 };
