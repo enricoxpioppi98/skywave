@@ -180,11 +180,13 @@ export default function Globe({
   }, [spots, listeningPost, sunPos]);
 
   // Day/night terminator as a great circle path.
+  // NB: do NOT attach a `color` field to the datum — the color is supplied via
+  // the `pathColor` accessor below, returning a two-element array so three-globe
+  // takes the gradient branch (safe against its color2ShaderArr undefined-trim bug).
   const terminator = useMemo(() => {
     const path = terminatorPath(sunPos, 180);
-    // react-globe.gl's pathsData expects [[lat, lng, alt?], ...] per path.
     const coords = path.map(([lon, lat]) => [lat, lon, 0.005] as [number, number, number]);
-    return [{ path: coords, color: TERMINATOR_COLOR }];
+    return [{ path: coords }];
   }, [sunPos]);
 
   // Tick sun position every 60 s.
@@ -376,6 +378,17 @@ export default function Globe({
         ringRepeatPeriod={1400}
         ringAltitude={0.005}
         ringResolution={64}
+        pathsData={terminator}
+        pathPoints="path"
+        pathPointLat={((pt: [number, number, number]) => pt[0]) as unknown as never}
+        pathPointLng={((pt: [number, number, number]) => pt[1]) as unknown as never}
+        pathPointAlt={((pt: [number, number, number]) => pt[2]) as unknown as never}
+        pathColor={(() => [TERMINATOR_COLOR, TERMINATOR_COLOR]) as unknown as never}
+        pathStroke={0.3}
+        pathDashLength={0.08}
+        pathDashGap={0.04}
+        pathDashAnimateTime={12000}
+        pathTransitionDuration={0}
       />
 
       {/* Floating control dock — bottom-right */}
