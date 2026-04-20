@@ -8,6 +8,7 @@ import type { Spot, UserPreferences } from "@/lib/types";
 import { BANDS } from "@/lib/bands";
 import { gridToLatLon } from "@/lib/grid";
 import StatsPanel from "./StatsPanel";
+import SpaceWeather from "./SpaceWeather";
 
 const Globe = dynamic(() => import("./Globe"), {
   ssr: false,
@@ -183,10 +184,11 @@ export default function Dashboard({
         />
       </section>
 
-      <aside className="md:w-72 md:border-l border-[color:var(--border)] bg-[color:var(--panel)]/30 flex flex-col">
+      <aside className="md:w-72 md:border-l border-[color:var(--border)] bg-[color:var(--panel)]/30 flex flex-col overflow-y-auto">
+        <SpaceWeather />
         <div className="px-4 py-3 border-b border-[color:var(--border)] flex items-center justify-between">
           <h2 className="mono text-xs uppercase tracking-widest text-[color:var(--muted)]">
-            conditions
+            activity
           </h2>
           <span className="mono text-[10px] text-[color:var(--muted)]">last {SPOT_WINDOW_MINUTES}m</span>
         </div>
