@@ -137,8 +137,7 @@ export default function Globe({
         startLng: s.tx_lon,
         endLat: s.rx_lat,
         endLng: s.rx_lon,
-        // ~80% alpha keeps dense fields breathable.
-        color: bandColor(s.band) + "cc",
+        color: bandColor(s.band),
         altitude,
         observedAt: new Date(s.observed_at).getTime(),
         id: s.id,
