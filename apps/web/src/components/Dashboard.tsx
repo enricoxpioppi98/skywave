@@ -10,6 +10,7 @@ import { gridToLatLon } from "@/lib/grid";
 import { reverseGeocode, formatGeo, flag, type GeoInfo } from "@/lib/geocode";
 import StatsPanel from "./StatsPanel";
 import SpaceWeather from "./SpaceWeather";
+import WorkerHealth from "./WorkerHealth";
 
 const Globe = dynamic(() => import("./Globe"), {
   ssr: false,
@@ -203,6 +204,7 @@ export default function Dashboard({
 
       <aside className="md:w-72 md:border-l border-[color:var(--border)] bg-[color:var(--panel)]/30 flex flex-col min-h-0 md:h-full overflow-y-auto">
         <SpaceWeather />
+        <WorkerHealth spots={spots} />
         <div className="px-4 py-3 border-b border-[color:var(--border)] flex items-center justify-between">
           <h2 className="mono text-xs uppercase tracking-widest text-[color:var(--muted)]">
             activity
