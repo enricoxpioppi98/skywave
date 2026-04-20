@@ -128,7 +128,9 @@ export default function Globe({
       startLng: s.tx_lon,
       endLat: s.rx_lat,
       endLng: s.rx_lon,
-      color: bandColor(s.band),
+      // Append ~45% alpha so dense fields of arcs feel like a gossamer web
+      // rather than a painted-on thicket.
+      color: bandColor(s.band) + "73",
       observedAt: new Date(s.observed_at).getTime(),
       id: s.id,
       spot: s,
@@ -394,7 +396,7 @@ export default function Globe({
         atmosphereAltitude={0.2}
         arcsData={arcs}
         arcColor={((a: Arc) => a.color) as unknown as never}
-        arcStroke={0.2}
+        arcStroke={0.1}
         arcDashLength={1}
         arcDashGap={0}
         arcDashAnimateTime={0}
