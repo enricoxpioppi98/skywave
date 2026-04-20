@@ -3,19 +3,18 @@
   "version": "0.0.1",
   "private": true,
   "description": "skywave — polls wspr.live and upserts spots into Supabase",
-  "main": "dist/index.js",
+  "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
+    "dev": "tsx watch --env-file=.env.local src/index.ts",
+    "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.103.0"
+    "@supabase/supabase-js": "^2.103.0",
+    "tsx": "^4.19.2"
   },
   "devDependencies": {
     "@types/node": "^22",
-    "tsx": "^4.19.2",
     "typescript": "^5.6.3"
   },
   "engines": {
