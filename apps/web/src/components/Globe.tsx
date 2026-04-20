@@ -407,8 +407,8 @@ export default function Globe({
         arcsData={arcs}
         arcColor={((a: Arc) => a.color) as unknown as never}
         arcStroke={0.1}
-        arcDashLength={0.004}
-        arcDashGap={0.014}
+        arcDashLength={0.002}
+        arcDashGap={0.006}
         arcDashAnimateTime={7000}
         arcAltitude={((a: Arc) => a.altitude) as unknown as never}
         arcCircularResolution={64}
