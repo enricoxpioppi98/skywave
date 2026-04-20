@@ -12,6 +12,7 @@ interface Arc {
   endLat: number;
   endLng: number;
   color: string;
+  altitude: number;
   observedAt: number;
   id: number;
   spot: Spot;
@@ -123,18 +124,26 @@ export default function Globe({
   // Keep the globe legible even when thousands of spots pile up on busy bands.
   const arcs: Arc[] = useMemo(() => {
     const capped = spots.length > 800 ? spots.slice(0, 800) : spots;
-    return capped.map((s) => ({
-      startLat: s.tx_lat,
-      startLng: s.tx_lon,
-      endLat: s.rx_lat,
-      endLng: s.rx_lon,
-      // Append ~45% alpha so dense fields of arcs feel like a gossamer web
-      // rather than a painted-on thicket.
-      color: bandColor(s.band) + "73",
-      observedAt: new Date(s.observed_at).getTime(),
-      id: s.id,
-      spot: s,
-    }));
+    return capped.map((s) => {
+      // Altitude varies by distance AND band so overlapping great-circles
+      // don't all sit at the same height. Lower-frequency bands (longer
+      // wavelengths, ionospheric skip) get a small extra boost — feels
+      // more "physics-y" than uniform stacking.
+      const distFrac = Math.min(1, s.distance_km / 20000);
+      const bandBoost = (1 - Math.min(1, s.band / 50)) * 0.06;
+      const altitude = Math.max(0.04, 0.05 + distFrac * 0.55 + bandBoost);
+      return {
+        startLat: s.tx_lat,
+        startLng: s.tx_lon,
+        endLat: s.rx_lat,
+        endLng: s.rx_lon,
+        color: bandColor(s.band),
+        altitude,
+        observedAt: new Date(s.observed_at).getTime(),
+        id: s.id,
+        spot: s,
+      };
+    });
   }, [spots]);
 
   const points: PointDatum[] = useMemo(() => {
@@ -396,11 +405,11 @@ export default function Globe({
         atmosphereAltitude={0.2}
         arcsData={arcs}
         arcColor={((a: Arc) => a.color) as unknown as never}
-        arcStroke={0.1}
-        arcDashLength={1}
-        arcDashGap={0}
-        arcDashAnimateTime={0}
-        arcAltitudeAutoScale={0.22}
+        arcStroke={0.45}
+        arcDashLength={0.012}
+        arcDashGap={0.03}
+        arcDashAnimateTime={6000}
+        arcAltitude={((a: Arc) => a.altitude) as unknown as never}
         arcCircularResolution={64}
         arcsTransitionDuration={0}
         arcLabel={((a: Arc) => arcLabelHtml(a)) as unknown as never}
