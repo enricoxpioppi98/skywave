@@ -100,12 +100,14 @@ export default function Globe({
         atmosphereColor={ATMOSPHERE_COLOR}
         atmosphereAltitude={0.18}
         arcsData={arcs}
-        arcColor="color"
-        arcStroke={0.3}
-        arcDashLength={0.5}
-        arcDashGap={0.8}
-        arcDashAnimateTime={3500}
-        arcAltitudeAutoScale={0.4}
+        arcColor={((a: Arc) => a.color) as unknown as never}
+        arcStroke={0.6}
+        arcDashLength={0.9}
+        arcDashGap={0.2}
+        arcDashAnimateTime={3000}
+        arcAltitudeAutoScale={0.5}
+        arcCircularResolution={64}
+        arcsTransitionDuration={0}
         pointsData={listeningPostData}
         pointLat="lat"
         pointLng="lng"
