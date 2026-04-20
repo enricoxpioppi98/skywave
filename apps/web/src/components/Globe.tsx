@@ -88,18 +88,27 @@ function pointLabelHtml(p: PointDatum): string {
   `;
 }
 
+interface PeerLockLite {
+  role: "rx" | "tx";
+  sign: string;
+}
+
 export default function Globe({
   spots,
   listeningPost,
   homeListeningPost,
+  peer,
   onListenAsRx,
   onTrackTx,
+  onClearPeer,
 }: {
   spots: Spot[];
   listeningPost: { lat: number; lon: number };
   homeListeningPost: { lat: number; lon: number };
+  peer: PeerLockLite | null;
   onListenAsRx: (sign: string, lat: number, lon: number) => void;
   onTrackTx: (sign: string, lat: number, lon: number) => void;
+  onClearPeer: () => void;
 }) {
   const globeRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -299,13 +308,18 @@ export default function Globe({
       const g = globeRef.current;
       if (!g) return;
       setAutoRotate(false);
+      // Toggle: if already listening as this rx, clear.
+      if (peer && peer.role === "rx" && peer.sign === a.spot.rx_sign) {
+        onClearPeer();
+        return;
+      }
       onListenAsRx(a.spot.rx_sign, a.spot.rx_lat, a.spot.rx_lon);
       g.pointOfView?.(
         { lat: a.spot.rx_lat, lng: a.spot.rx_lon, altitude: 1.6 },
         1200,
       );
     },
-    [onListenAsRx],
+    [onListenAsRx, onClearPeer, peer],
   );
 
   const onPointClick = useCallback(
@@ -313,13 +327,18 @@ export default function Globe({
       const p = pt as PointDatum;
       const g = globeRef.current;
       if (!g) return;
-      if (p.role === "sun") return;
+      if (p.role === "sun" || p.role === "listening-post") return;
       setAutoRotate(false);
+      // Toggle: clicking the same locked station clears.
+      if (peer && peer.role === p.role && peer.sign === p.label) {
+        onClearPeer();
+        return;
+      }
       if (p.role === "rx") onListenAsRx(p.label, p.lat, p.lng);
       else if (p.role === "tx") onTrackTx(p.label, p.lat, p.lng);
       g.pointOfView?.({ lat: p.lat, lng: p.lng, altitude: 1.5 }, 1000);
     },
-    [onListenAsRx, onTrackTx],
+    [onListenAsRx, onTrackTx, onClearPeer, peer],
   );
 
   const recenterOnListeningPost = useCallback(() => {

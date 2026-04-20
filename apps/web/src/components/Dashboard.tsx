@@ -184,8 +184,10 @@ export default function Dashboard({
           spots={filtered}
           listeningPost={activeListeningPost}
           homeListeningPost={homeListeningPost}
+          peer={peer}
           onListenAsRx={listenAsRx}
           onTrackTx={trackTx}
+          onClearPeer={clearPeer}
         />
       </section>
 
