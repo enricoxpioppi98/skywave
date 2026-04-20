@@ -137,7 +137,8 @@ export default function Globe({
         startLng: s.tx_lon,
         endLat: s.rx_lat,
         endLng: s.rx_lon,
-        color: bandColor(s.band),
+        // ~80% alpha keeps dense fields breathable.
+        color: bandColor(s.band) + "cc",
         altitude,
         observedAt: new Date(s.observed_at).getTime(),
         id: s.id,
@@ -405,10 +406,10 @@ export default function Globe({
         atmosphereAltitude={0.2}
         arcsData={arcs}
         arcColor={((a: Arc) => a.color) as unknown as never}
-        arcStroke={0.45}
-        arcDashLength={0.012}
-        arcDashGap={0.03}
-        arcDashAnimateTime={6000}
+        arcStroke={0.18}
+        arcDashLength={0.007}
+        arcDashGap={0.025}
+        arcDashAnimateTime={6500}
         arcAltitude={((a: Arc) => a.altitude) as unknown as never}
         arcCircularResolution={64}
         arcsTransitionDuration={0}
