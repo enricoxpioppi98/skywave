@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import GlobeGL from "react-globe.gl";
 import type { Spot } from "@/lib/types";
 import { bandColor } from "@/lib/bands";
@@ -27,7 +27,7 @@ export default function Globe({
 }) {
   const globeRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ w: 0, h: 0 });
+  const [size, setSize] = useState<{ w: number; h: number }>({ w: 800, h: 600 });
 
   const arcs: Arc[] = useMemo(
     () =>
@@ -55,55 +55,64 @@ export default function Globe({
     [listeningPost],
   );
 
-  useEffect(() => {
+  // Measure container synchronously before paint so the globe has a real size.
+  useLayoutEffect(() => {
     if (!containerRef.current) return;
     const el = containerRef.current;
-    const update = () => setSize({ w: el.clientWidth, h: el.clientHeight });
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      const w = Math.max(200, Math.floor(rect.width));
+      const h = Math.max(200, Math.floor(rect.height));
+      setSize({ w, h });
+    };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
   }, []);
 
   useEffect(() => {
-    if (!globeRef.current) return;
-    const controls = globeRef.current.controls?.();
+    const g = globeRef.current;
+    if (!g) return;
+    const controls = g.controls?.();
     if (controls) {
       controls.autoRotate = true;
       controls.autoRotateSpeed = 0.3;
     }
-    globeRef.current.pointOfView?.(
+    g.pointOfView?.(
       { lat: listeningPost.lat, lng: listeningPost.lon, altitude: 2.5 },
       1500,
     );
-  }, [listeningPost.lat, listeningPost.lon]);
+  }, [listeningPost.lat, listeningPost.lon, size.w]);
 
   return (
-    <div ref={containerRef} className="flex-1 relative">
-      {size.w > 0 && (
-        <GlobeGL
-          ref={globeRef}
-          width={size.w}
-          height={size.h}
-          globeImageUrl={GLOBE_IMAGE}
-          backgroundColor="rgba(0,0,0,0)"
-          atmosphereColor={ATMOSPHERE_COLOR}
-          atmosphereAltitude={0.18}
-          arcsData={arcs}
-          arcColor="color"
-          arcStroke={0.3}
-          arcDashLength={0.5}
-          arcDashGap={0.8}
-          arcDashAnimateTime={3500}
-          arcAltitudeAutoScale={0.4}
-          pointsData={listeningPostData}
-          pointLat="lat"
-          pointLng="lng"
-          pointColor="color"
-          pointRadius={0.5}
-          pointAltitude={0.01}
-        />
-      )}
+    <div ref={containerRef} className="absolute inset-0 flex items-center justify-center overflow-hidden">
+      <GlobeGL
+        ref={globeRef}
+        width={size.w}
+        height={size.h}
+        globeImageUrl={GLOBE_IMAGE}
+        backgroundColor="rgba(0,0,0,0)"
+        atmosphereColor={ATMOSPHERE_COLOR}
+        atmosphereAltitude={0.18}
+        arcsData={arcs}
+        arcColor="color"
+        arcStroke={0.3}
+        arcDashLength={0.5}
+        arcDashGap={0.8}
+        arcDashAnimateTime={3500}
+        arcAltitudeAutoScale={0.4}
+        pointsData={listeningPostData}
+        pointLat="lat"
+        pointLng="lng"
+        pointColor="color"
+        pointRadius={0.5}
+        pointAltitude={0.01}
+      />
     </div>
   );
 }
