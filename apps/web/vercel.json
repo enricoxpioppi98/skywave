@@ -1,5 +1,0 @@
-{
-  "framework": "nextjs",
-  "installCommand": "npm install --workspaces",
-  "buildCommand": "npm run build --workspace apps/web"
-}
