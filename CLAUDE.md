@@ -18,7 +18,7 @@ What's actually in the repo today, with pointers to where each piece lives. The 
 - **Listening-post marker** — your home grid square glows in accent cyan; persists across peer-lock switches via `homeListeningPost`.
 - **Station points** — every unique tx and rx in view renders as a small dot colored by band; hover reveals callsign + role; click hooks into peer lock.
 - **Interactive controls** — drag to rotate, scroll to zoom, click arc/point to lock. Control dock in bottom-right: auto-rotate toggle, recenter on listening post, fly to sun. Auto-rotate stops automatically on user interaction.
-- **Day/night terminator** — _not shipped._ The great-circle math exists in `apps/web/src/lib/sun.ts` (`terminatorPath`, `nightHemispherePolygon`) but a three-globe color-pipeline issue blocked rendering (see commit `808d18c`); a small caption in `Globe.tsx` still references it and should be cleaned up when the path actually ships.
+- **Day/night terminator (grayline)** — a dashed warm-yellow great-circle traces the sun's light/dark boundary on Earth, recomputed every 60s. Math in `apps/web/src/lib/sun.ts` (`terminatorPath`); wired via `pathsData` in `Globe.tsx`. The earlier three-globe color-pipeline crash was worked around by returning a two-element color array from the `pathColor` accessor — commit `9c4a722`.
 
 ### Peer lock ("listen in") (`apps/web/src/components/Dashboard.tsx`)
 - Clicking an arc or an rx/tx point sets a `PeerLock` (role `rx` or `tx`, callsign, coords).
