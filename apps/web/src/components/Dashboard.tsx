@@ -140,40 +140,44 @@ export default function Dashboard({
       </aside>
 
       <section className="flex-1 relative flex flex-col min-h-[50vh] md:min-h-0">
-        {/* Peer-lock banner */}
-        {peer && <PeerBanner peer={peer} onClear={clearPeer} />}
-
-        {/* Band filter pills */}
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 flex-wrap justify-center max-w-[90%]">
-          <button
-            onClick={selectAll}
-            className="mono text-[10px] uppercase tracking-wider px-2 py-1 text-[color:var(--muted)] hover:text-[color:var(--accent)] transition"
-          >
-            all
-          </button>
-          {BANDS.map((b) => {
-            const on = selectedBands.has(b.band);
-            return (
-              <button
-                key={b.band}
-                onClick={() => toggleBand(b.band)}
-                className={`mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition`}
-                style={{
-                  color: on ? b.color : "var(--muted)",
-                  borderColor: on ? b.color : "var(--border)",
-                  background: on ? `${b.color}14` : "transparent",
-                }}
-              >
-                {b.name}
-              </button>
-            );
-          })}
-          <button
-            onClick={selectNone}
-            className="mono text-[10px] uppercase tracking-wider px-2 py-1 text-[color:var(--muted)] hover:text-[color:var(--accent-hot)] transition"
-          >
-            none
-          </button>
+        {/* Stacked top overlay: pills first, peer banner below. Guarantees no overlap when pills wrap. */}
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 max-w-[92%] w-max pointer-events-none">
+          <div className="flex items-center gap-1.5 flex-wrap justify-center pointer-events-auto">
+            <button
+              onClick={selectAll}
+              className="mono text-[10px] uppercase tracking-wider px-2 py-1 text-[color:var(--muted)] hover:text-[color:var(--accent)] transition"
+            >
+              all
+            </button>
+            {BANDS.map((b) => {
+              const on = selectedBands.has(b.band);
+              return (
+                <button
+                  key={b.band}
+                  onClick={() => toggleBand(b.band)}
+                  className={`mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border transition`}
+                  style={{
+                    color: on ? b.color : "var(--muted)",
+                    borderColor: on ? b.color : "var(--border)",
+                    background: on ? `${b.color}14` : "transparent",
+                  }}
+                >
+                  {b.name}
+                </button>
+              );
+            })}
+            <button
+              onClick={selectNone}
+              className="mono text-[10px] uppercase tracking-wider px-2 py-1 text-[color:var(--muted)] hover:text-[color:var(--accent-hot)] transition"
+            >
+              none
+            </button>
+          </div>
+          {peer && (
+            <div className="pointer-events-auto">
+              <PeerBanner peer={peer} onClear={clearPeer} />
+            </div>
+          )}
         </div>
 
         <Globe
@@ -246,7 +250,7 @@ function PeerBanner({ peer, onClear }: { peer: PeerLock; onClear: () => void }) 
       : "showing only spots this station is transmitting";
 
   return (
-    <div className="absolute top-14 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3 px-4 py-2 rounded-md bg-[color:var(--panel)]/80 border border-[color:var(--accent)] backdrop-blur-sm shadow-lg shadow-[color:var(--accent)]/10 animate-fade-in">
+    <div className="flex items-center gap-3 px-4 py-2 rounded-md bg-[color:var(--panel)]/80 border border-[color:var(--accent)] backdrop-blur-sm shadow-lg shadow-[color:var(--accent)]/10 animate-fade-in">
       <div className="flex flex-col">
         <span className="mono text-xs text-[color:var(--accent)] uppercase tracking-wider">
           {headline}
