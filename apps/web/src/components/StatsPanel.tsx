@@ -3,13 +3,16 @@
 import { useMemo } from "react";
 import type { Spot, UserPreferences } from "@/lib/types";
 import { BANDS, bandColor } from "@/lib/bands";
+import type { PeerLock } from "./Dashboard";
 
 export default function StatsPanel({
   spots,
   prefs,
+  peer,
 }: {
   spots: Spot[];
   prefs: UserPreferences;
+  peer: PeerLock | null;
 }) {
   const stats = useMemo(() => {
     const byBand = new Map<number, number>();
@@ -44,11 +47,24 @@ export default function StatsPanel({
     <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6 mono text-xs">
       <section>
         <h3 className="text-[color:var(--muted)] uppercase tracking-widest text-[10px] mb-2">
-          listening post
+          {peer ? (peer.role === "rx" ? "listening as" : "tracking") : "listening post"}
         </h3>
-        <div className="text-lg font-semibold tracking-wide">{prefs.listening_post_grid}</div>
-        {prefs.callsign && (
-          <div className="text-[color:var(--accent)] mt-1">{prefs.callsign}</div>
+        {peer ? (
+          <>
+            <div className="text-lg font-semibold tracking-wide text-[color:var(--accent)]">
+              {peer.sign}
+            </div>
+            <div className="text-[10px] text-[color:var(--muted)] mt-0.5">
+              home: {prefs.listening_post_grid}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="text-lg font-semibold tracking-wide">{prefs.listening_post_grid}</div>
+            {prefs.callsign && (
+              <div className="text-[color:var(--accent)] mt-1">{prefs.callsign}</div>
+            )}
+          </>
         )}
       </section>
 

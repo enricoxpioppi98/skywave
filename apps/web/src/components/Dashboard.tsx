@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { RealtimeChannel, RealtimePostgresInsertPayload } from "@supabase/supabase-js";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Spot, UserPreferences } from "@/lib/types";
-import { BANDS, bandLabel } from "@/lib/bands";
+import { BANDS } from "@/lib/bands";
 import { gridToLatLon } from "@/lib/grid";
 import SpotFeed from "./SpotFeed";
 import StatsPanel from "./StatsPanel";
@@ -22,6 +22,14 @@ const Globe = dynamic(() => import("./Globe"), {
 const SPOT_WINDOW_MINUTES = 30;
 const MAX_SPOTS_IN_MEMORY = 2000;
 
+/** A temporary "what is this station hearing / sending" override. */
+export interface PeerLock {
+  role: "rx" | "tx";
+  sign: string;
+  lat: number;
+  lon: number;
+}
+
 export default function Dashboard({
   initialSpots,
   prefs,
@@ -34,14 +42,18 @@ export default function Dashboard({
     new Set(prefs.favorite_bands),
   );
   const [status, setStatus] = useState<"connecting" | "live" | "error">("connecting");
+  const [peer, setPeer] = useState<PeerLock | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
-  const listeningPost = useMemo(
+  const homeListeningPost = useMemo(
     () => gridToLatLon(prefs.listening_post_grid) ?? { lat: 0, lon: 0 },
     [prefs.listening_post_grid],
   );
 
-  // Realtime subscription to INSERTs on spots.
+  const activeListeningPost = peer
+    ? { lat: peer.lat, lon: peer.lon }
+    : homeListeningPost;
+
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
     const channel = supabase
@@ -69,7 +81,6 @@ export default function Dashboard({
     };
   }, []);
 
-  // Prune spots older than the window.
   useEffect(() => {
     const interval = setInterval(() => {
       const cutoff = Date.now() - SPOT_WINDOW_MINUTES * 60 * 1000;
@@ -78,10 +89,13 @@ export default function Dashboard({
     return () => clearInterval(interval);
   }, []);
 
-  const filtered = useMemo(
-    () => spots.filter((s) => selectedBands.has(s.band)),
-    [spots, selectedBands],
-  );
+  const filtered = useMemo(() => {
+    const byBand = spots.filter((s) => selectedBands.has(s.band));
+    if (!peer) return byBand;
+    return byBand.filter((s) =>
+      peer.role === "rx" ? s.rx_sign === peer.sign : s.tx_sign === peer.sign,
+    );
+  }, [spots, selectedBands, peer]);
 
   const toggleBand = (band: number) => {
     setSelectedBands((prev) => {
@@ -95,9 +109,16 @@ export default function Dashboard({
   const selectAll = () => setSelectedBands(new Set(BANDS.map((b) => b.band)));
   const selectNone = () => setSelectedBands(new Set());
 
+  const listenAsRx = useCallback((sign: string, lat: number, lon: number) => {
+    setPeer({ role: "rx", sign, lat, lon });
+  }, []);
+  const trackTx = useCallback((sign: string, lat: number, lon: number) => {
+    setPeer({ role: "tx", sign, lat, lon });
+  }, []);
+  const clearPeer = useCallback(() => setPeer(null), []);
+
   return (
     <main className="flex-1 flex flex-col md:flex-row overflow-hidden">
-      {/* Left rail: spot feed */}
       <aside className="md:w-80 md:border-r border-[color:var(--border)] bg-[color:var(--panel)]/30 flex flex-col max-h-[40vh] md:max-h-none">
         <div className="px-4 py-3 border-b border-[color:var(--border)] flex items-center justify-between">
           <h2 className="mono text-xs uppercase tracking-widest text-[color:var(--muted)]">
@@ -108,8 +129,11 @@ export default function Dashboard({
         <SpotFeed spots={filtered} />
       </aside>
 
-      {/* Center: globe */}
       <section className="flex-1 relative flex flex-col min-h-[50vh]">
+        {/* Peer-lock banner */}
+        {peer && <PeerBanner peer={peer} onClear={clearPeer} />}
+
+        {/* Band filter pills */}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 flex-wrap justify-center max-w-[90%]">
           <button
             onClick={selectAll}
@@ -141,10 +165,16 @@ export default function Dashboard({
             none
           </button>
         </div>
-        <Globe spots={filtered} listeningPost={listeningPost} />
+
+        <Globe
+          spots={filtered}
+          listeningPost={activeListeningPost}
+          homeListeningPost={homeListeningPost}
+          onListenAsRx={listenAsRx}
+          onTrackTx={trackTx}
+        />
       </section>
 
-      {/* Right rail: stats */}
       <aside className="md:w-72 md:border-l border-[color:var(--border)] bg-[color:var(--panel)]/30 flex flex-col">
         <div className="px-4 py-3 border-b border-[color:var(--border)] flex items-center justify-between">
           <h2 className="mono text-xs uppercase tracking-widest text-[color:var(--muted)]">
@@ -152,7 +182,7 @@ export default function Dashboard({
           </h2>
           <span className="mono text-[10px] text-[color:var(--muted)]">last {SPOT_WINDOW_MINUTES}m</span>
         </div>
-        <StatsPanel spots={filtered} prefs={prefs} />
+        <StatsPanel spots={filtered} prefs={prefs} peer={peer} />
       </aside>
     </main>
   );
@@ -176,5 +206,29 @@ function StatusDot({ status }: { status: "connecting" | "live" | "error" }) {
   );
 }
 
-// Export band list helper so Globe can use same color scheme without re-importing.
-export { bandLabel };
+function PeerBanner({ peer, onClear }: { peer: PeerLock; onClear: () => void }) {
+  const headline =
+    peer.role === "rx"
+      ? `listening in from ${peer.sign}`
+      : `tracking transmissions from ${peer.sign}`;
+  const sub =
+    peer.role === "rx"
+      ? "showing only spots this station is receiving"
+      : "showing only spots this station is transmitting";
+  return (
+    <div className="absolute top-14 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3 px-4 py-2 rounded-md bg-[color:var(--panel)]/80 border border-[color:var(--accent)] backdrop-blur-sm shadow-lg shadow-[color:var(--accent)]/10 animate-fade-in">
+      <div className="flex flex-col">
+        <span className="mono text-xs text-[color:var(--accent)] uppercase tracking-wider">
+          {headline}
+        </span>
+        <span className="mono text-[10px] text-[color:var(--muted)]">{sub}</span>
+      </div>
+      <button
+        onClick={onClear}
+        className="mono text-[10px] uppercase tracking-wider px-2 py-1 rounded border border-[color:var(--border)] text-[color:var(--muted)] hover:text-[color:var(--accent-hot)] hover:border-[color:var(--accent-hot)] transition"
+      >
+        clear ✕
+      </button>
+    </div>
+  );
+}

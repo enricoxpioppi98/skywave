@@ -77,9 +77,15 @@ function pointLabelHtml(p: PointDatum): string {
 export default function Globe({
   spots,
   listeningPost,
+  homeListeningPost,
+  onListenAsRx,
+  onTrackTx,
 }: {
   spots: Spot[];
   listeningPost: { lat: number; lon: number };
+  homeListeningPost: { lat: number; lon: number };
+  onListenAsRx: (sign: string, lat: number, lon: number) => void;
+  onTrackTx: (sign: string, lat: number, lon: number) => void;
 }) {
   const globeRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -214,37 +220,43 @@ export default function Globe({
     img.src = GLOBE_IMAGE_HIRES;
   }, [globeImage]);
 
-  const onArcClick = useCallback((arc: object) => {
-    const a = arc as Arc;
-    const g = globeRef.current;
-    if (!g) return;
-    setAutoRotate(false);
-    g.pointOfView?.(
-      {
-        lat: mid(a.startLat, a.endLat),
-        lng: mid(a.startLng, a.endLng),
-        altitude: 1.6,
-      },
-      1200,
-    );
-  }, []);
+  const onArcClick = useCallback(
+    (arc: object) => {
+      const a = arc as Arc;
+      const g = globeRef.current;
+      if (!g) return;
+      setAutoRotate(false);
+      // "Listen in" from this arc's receiver.
+      onListenAsRx(a.spot.rx_sign, a.spot.rx_lat, a.spot.rx_lon);
+      g.pointOfView?.(
+        { lat: a.spot.rx_lat, lng: a.spot.rx_lon, altitude: 1.6 },
+        1200,
+      );
+    },
+    [onListenAsRx],
+  );
 
-  const onPointClick = useCallback((pt: object) => {
-    const p = pt as PointDatum;
-    const g = globeRef.current;
-    if (!g) return;
-    setAutoRotate(false);
-    g.pointOfView?.({ lat: p.lat, lng: p.lng, altitude: 1.5 }, 1000);
-  }, []);
+  const onPointClick = useCallback(
+    (pt: object) => {
+      const p = pt as PointDatum;
+      const g = globeRef.current;
+      if (!g) return;
+      setAutoRotate(false);
+      if (p.role === "rx") onListenAsRx(p.label, p.lat, p.lng);
+      else if (p.role === "tx") onTrackTx(p.label, p.lat, p.lng);
+      g.pointOfView?.({ lat: p.lat, lng: p.lng, altitude: 1.5 }, 1000);
+    },
+    [onListenAsRx, onTrackTx],
+  );
 
   const recenterOnListeningPost = useCallback(() => {
     const g = globeRef.current;
     if (!g) return;
     g.pointOfView?.(
-      { lat: listeningPost.lat, lng: listeningPost.lon, altitude: 2.2 },
+      { lat: homeListeningPost.lat, lng: homeListeningPost.lon, altitude: 2.2 },
       1000,
     );
-  }, [listeningPost.lat, listeningPost.lon]);
+  }, [homeListeningPost.lat, homeListeningPost.lon]);
 
   return (
     <div ref={containerRef} className="absolute inset-0 flex items-center justify-center overflow-hidden">
@@ -301,8 +313,8 @@ export default function Globe({
         </button>
       </div>
 
-      <div className="absolute bottom-3 left-4 z-10 mono text-[10px] text-[color:var(--muted)] pointer-events-none">
-        drag to rotate · scroll to zoom · click an arc
+      <div className="absolute bottom-3 left-4 z-10 mono text-[10px] text-[color:var(--muted)] pointer-events-none max-w-xs">
+        drag to rotate · scroll to zoom · click an arc to listen in from its receiver
       </div>
     </div>
   );
