@@ -1,9 +1,20 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { Spot } from "@/lib/types";
 import { bandColor, bandLabel } from "@/lib/bands";
 
 export default function SpotFeed({ spots }: { spots: Spot[] }) {
+  // Relative times depend on the wall clock, which causes SSR/CSR hydration
+  // mismatches. Track a client-only "now" that starts as null, populates on
+  // mount, and ticks every 5s so timestamps stay fresh.
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 5_000);
+    return () => clearInterval(id);
+  }, []);
+
   if (spots.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-6 text-center text-[color:var(--muted)] mono text-xs">
@@ -33,8 +44,11 @@ export default function SpotFeed({ spots }: { spots: Spot[] }) {
                 <span className="text-[color:var(--foreground)]">{s.rx_sign}</span>
               </span>
             </div>
-            <span className="mono text-[10px] text-[color:var(--muted)] shrink-0">
-              {formatRelative(s.observed_at)}
+            <span
+              className="mono text-[10px] text-[color:var(--muted)] shrink-0"
+              suppressHydrationWarning
+            >
+              {now != null ? formatRelative(s.observed_at, now) : ""}
             </span>
           </div>
           <div className="mt-1 flex items-center gap-3 text-[10px] mono text-[color:var(--muted)]">
@@ -48,8 +62,8 @@ export default function SpotFeed({ spots }: { spots: Spot[] }) {
   );
 }
 
-function formatRelative(iso: string): string {
-  const diffSec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+function formatRelative(iso: string, now: number): string {
+  const diffSec = Math.floor((now - new Date(iso).getTime()) / 1000);
   if (diffSec < 60) return `${Math.max(0, diffSec)}s`;
   const mins = Math.floor(diffSec / 60);
   if (mins < 60) return `${mins}m`;
