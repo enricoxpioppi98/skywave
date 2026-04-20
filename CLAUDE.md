@@ -6,6 +6,53 @@ A real-time visualization of amateur radio HF propagation through the Earth's io
 
 ---
 
+## Shipped features
+
+What's actually in the repo today, with pointers to where each piece lives. The original architecture in §1–§11 below is the blueprint; this section is the reality check.
+
+### Globe (`apps/web/src/components/Globe.tsx`)
+- `react-globe.gl` + Three.js, hi-res NASA "Black Marble" night texture with bump map; atmosphere glow, graceful fallback to three-globe's bundled texture if the NASA image fails to load.
+- Band-colored animated arcs (tx → rx) with dashed propagation animation. **Arc cap of 250** and **altitude auto-scale of 0.22** keep busy bands legible without overwhelming the GPU.
+- **Realtime ring pulses** — every arriving spot from Supabase Realtime bursts an expanding ring at the receiver's coordinates; rings live 5s then sweep. The initial SSR payload is skipped so only truly live arrivals pulse.
+- **Subsolar point** — a sun-colored marker at the lat/lon directly under the sun right now, recomputed every 60s from `apps/web/src/lib/sun.ts` (`subSolarPoint`). Hover label explains what it is.
+- **Listening-post marker** — your home grid square glows in accent cyan; persists across peer-lock switches via `homeListeningPost`.
+- **Station points** — every unique tx and rx in view renders as a small dot colored by band; hover reveals callsign + role; click hooks into peer lock.
+- **Interactive controls** — drag to rotate, scroll to zoom, click arc/point to lock. Control dock in bottom-right: auto-rotate toggle, recenter on listening post, fly to sun. Auto-rotate stops automatically on user interaction.
+- **Day/night terminator** — _not shipped._ The great-circle math exists in `apps/web/src/lib/sun.ts` (`terminatorPath`, `nightHemispherePolygon`) but a three-globe color-pipeline issue blocked rendering (see commit `808d18c`); a small caption in `Globe.tsx` still references it and should be cleaned up when the path actually ships.
+
+### Peer lock ("listen in") (`apps/web/src/components/Dashboard.tsx`)
+- Clicking an arc or an rx/tx point sets a `PeerLock` (role `rx` or `tx`, callsign, coords).
+- While a peer is locked: spots filter to that station, the camera flies to it, a banner explains what you're seeing, and the stats panel relabels to "listening as {callsign}" / "tracking {callsign}".
+- Clear button in the banner returns to your home listening post.
+
+### Space weather widget (`apps/web/src/components/SpaceWeather.tsx`)
+- Polls NOAA SWPC public JSON endpoints (`f107_cm_flux.json`, `planetary_k_index_1m.json`) every 5 min, no auth.
+- Shows current **solar flux (SFI, F10.7)** and **planetary Kp index** with a `quiet / unsettled / active / minor / storm / severe` word from `kpWord`.
+- `assess()` translates SFI + Kp into a plain-English HF-propagation rating: *excellent / good / fair / poor / stormy*, each with a one-line reason (e.g. "geomagnetic storm — HF absorbed on high latitudes").
+
+### Spot feed (`apps/web/src/components/SpotFeed.tsx`)
+- Live-updating list of spots matching the active filter (band + peer lock), capped at 200 rendered rows.
+- Each row: band pill, tx → rx callsigns, distance, SNR, tx power, relative "Ns / Nm / Nh ago" timestamp that ticks every 5s. `now` is client-only to avoid SSR/CSR hydration mismatches (fix from commit `a20e3e6`).
+
+### Stats panel (`apps/web/src/components/StatsPanel.tsx`)
+- Active spot count, unique tx/rx counts, farthest-distance spot (with callsigns), and a mini-bar-chart of spots-by-band, all recomputed from the filtered spot set.
+- Header relabels based on peer lock: "listening post" → "listening as" / "tracking".
+
+### Settings (`apps/web/src/components/SettingsForm.tsx`)
+- Edit Maidenhead grid (2/4/6 chars, validated by `isValidGrid` in `apps/web/src/lib/grid.ts`), favorite bands (multi-select), optional callsign.
+- Writes through to `user_preferences` via RLS-scoped anon client; router.refresh propagates changes back.
+
+### Worker (`apps/worker/src/`)
+- `index.ts` — two concurrent loops: `pollLoop` (polls wspr.live every `POLL_INTERVAL_SEC`, default 30s) and `retentionLoop` (deletes spots older than `RETENTION_HOURS` every 5 min).
+- `wspr.ts` — HTTP client for the wspr.live ClickHouse HTTP endpoint.
+- `supabase.ts` — service-role client; `upsertSpots` with `onConflict: "id", ignoreDuplicates: true`; `getMaxObservedAt` resumes without gaps on restart.
+- Exponential backoff up to 5 min on errors; SIGTERM/SIGINT shutdown handlers for clean Railway restarts.
+
+### Band catalog (`apps/web/src/lib/bands.ts`)
+- 13 bands from LF/MF (`band=0`) through 2m (`band=144`), each with a wavelength name, nominal MHz, and a perceptually-ordered color (warm for low freq, cool for high). Default favorites: 40m / 30m / 20m.
+
+---
+
 ## 1. The data
 
 **Source:** [wspr.live](https://wspr.live) — a public ClickHouse database mirroring the global WSPRnet reception report stream.
@@ -284,6 +331,57 @@ skywave/
 3. **Railway** — new project from GitHub, root = `apps/worker`, start = `npm start`, add env vars.
 4. **Vercel** — new project from GitHub, root = `apps/web`, framework = Next.js, add env vars.
 5. **Smoke test** — sign up from a second browser as a different user, verify prefs are isolated and arcs animate live.
+
+---
+
+## 9b. Deploying (the actual playbook)
+
+Concrete steps for getting this running on Railway + Vercel with Supabase. `railway.toml` at the repo root is the source of truth for worker build/start.
+
+### Supabase
+
+1. Create a new project at [supabase.com](https://supabase.com).
+2. Run `supabase/migrations/001_init.sql` and `002_realtime.sql` in the SQL editor (or via the Supabase CLI).
+3. Verify RLS is on for `spots` and `user_preferences`, and that `spots` is in the `supabase_realtime` publication.
+4. From **Project Settings → API**, grab:
+   - Project URL → `SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_URL`
+   - `anon` key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `service_role` key → `SUPABASE_SERVICE_ROLE_KEY` (secret — worker only)
+5. **Auth → URL Configuration** — add the Vercel production URL (e.g. `https://skywave.vercel.app`) as an allowed redirect URL so magic-link / OAuth callbacks work in prod.
+
+### Railway (worker)
+
+1. New project → Deploy from GitHub → pick this repo.
+2. Root is `/` (Railway reads `railway.toml`). No root override needed. Nixpacks auto-detects Node 22 and installs workspace deps from the monorepo root; start command is `npm run start --workspace apps/worker`.
+3. Set env vars in the Railway service dashboard:
+   - `SUPABASE_URL` (required)
+   - `SUPABASE_SERVICE_ROLE_KEY` (required, secret)
+   - `POLL_INTERVAL_SEC` (optional, default `30`)
+   - `RETENTION_HOURS` (optional, default `6`)
+   - `BATCH_LIMIT` (optional, default `2000`)
+4. Deploy. `restartPolicyType = "always"` in `railway.toml` means Railway auto-restarts on crash; the loop's exponential backoff handles transient errors without restarting.
+5. Watch the deploy logs for `skywave.worker.boot` followed by `skywave.poll.ok` within ~60s.
+
+### Vercel (web)
+
+1. New project → Import from GitHub → pick this repo.
+2. **Root Directory:** `apps/web`. Framework preset: Next.js (auto-detected).
+3. Set env vars in **Settings → Environment Variables** (all environments):
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. Deploy. No custom build/start — Next.js 16 defaults work.
+5. Back in Supabase: add the Vercel URL to the auth redirect allowlist (see step 5 above) if you haven't.
+
+### Smoke test checklist
+
+- [ ] Open the deployed web URL; sign in (magic link or GitHub).
+- [ ] `/app` loads and within ~60s shows arcs appearing on the globe.
+- [ ] Left rail "live spots" feed populates; the "live" status dot is green.
+- [ ] Click an arc → camera flies to the receiver, peer-lock banner appears, arcs filter down. Click "clear ✕" → returns to home view.
+- [ ] Right rail "space weather" shows a numeric SFI + Kp and a rating within a few seconds.
+- [ ] Open `/app/settings`, change grid to (e.g.) `JO65`, save → dashboard recenters to Berlin.
+- [ ] Second browser / incognito: sign up as a different user, confirm their prefs don't leak into the first user's view (RLS).
+- [ ] Railway logs show `skywave.poll.ok` every `POLL_INTERVAL_SEC`; no sustained `skywave.poll.error` lines.
 
 ---
 
