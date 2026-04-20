@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import GlobeGL from "react-globe.gl";
 import type { Spot } from "@/lib/types";
 import { bandColor, bandLabel } from "@/lib/bands";
+import { subSolarPoint, terminatorPath } from "@/lib/sun";
 
 interface Arc {
   startLat: number;
@@ -21,21 +22,26 @@ interface PointDatum {
   lng: number;
   color: string;
   label: string;
-  role: "listening-post" | "tx" | "rx";
+  role: "listening-post" | "tx" | "rx" | "sun";
   radius: number;
   altitude: number;
 }
 
-// High-res NASA Black Marble night lights — 3600x1800
+interface RingDatum {
+  id: string;
+  lat: number;
+  lng: number;
+  color: string;
+  createdAt: number;
+}
+
 const GLOBE_IMAGE_HIRES = "https://eoimages.gsfc.nasa.gov/images/imagerecords/79000/79765/dnb_land_ocean_ice.2012.3600x1800_geo.jpg";
-// Fallback if NASA CDN is slow / CORS-blocked
 const GLOBE_IMAGE_FALLBACK = "//unpkg.com/three-globe/example/img/earth-night.jpg";
 const BUMP_IMAGE = "//unpkg.com/three-globe/example/img/earth-topology.png";
 const ATMOSPHERE_COLOR = "#7ee3ff";
-
-function mid(a: number, b: number) {
-  return (a + b) / 2;
-}
+const SUN_COLOR = "#ffd166";
+const TERMINATOR_COLOR = "#ffbb5c";
+const RING_LIFETIME_MS = 5000;
 
 function formatRelative(ts: number): string {
   const diffSec = Math.floor((Date.now() - ts) / 1000);
@@ -66,6 +72,14 @@ function arcLabelHtml(a: Arc): string {
 }
 
 function pointLabelHtml(p: PointDatum): string {
+  if (p.role === "sun") {
+    return `
+      <div style="font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; padding: 6px 10px; background: rgba(10,14,26,0.92); border: 1px solid ${p.color}; border-radius: 4px; color: #e6e9f2; backdrop-filter: blur(6px);">
+        <div style="color: ${p.color}; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;">☀ subsolar point</div>
+        <div>directly under the sun right now</div>
+      </div>
+    `;
+  }
   return `
     <div style="font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; padding: 6px 10px; background: rgba(10,14,26,0.92); border: 1px solid ${p.color}; border-radius: 4px; color: #e6e9f2; backdrop-filter: blur(6px);">
       <div style="color: ${p.color}; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;">${p.role.replace("-", " ")}</div>
@@ -89,26 +103,29 @@ export default function Globe({
 }) {
   const globeRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const prevSpotIdsRef = useRef<Set<number>>(new Set(spots.map((s) => s.id)));
+  const isFirstSpotsRenderRef = useRef(true);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 800, h: 600 });
   const [autoRotate, setAutoRotate] = useState(true);
   const [globeImage, setGlobeImage] = useState(GLOBE_IMAGE_HIRES);
+  const [sunPos, setSunPos] = useState(() => subSolarPoint());
+  const [rings, setRings] = useState<RingDatum[]>([]);
 
-  const arcs: Arc[] = useMemo(
-    () =>
-      spots.map((s) => ({
-        startLat: s.tx_lat,
-        startLng: s.tx_lon,
-        endLat: s.rx_lat,
-        endLng: s.rx_lon,
-        color: bandColor(s.band),
-        observedAt: new Date(s.observed_at).getTime(),
-        id: s.id,
-        spot: s,
-      })),
-    [spots],
-  );
+  // Keep the globe legible even when thousands of spots pile up on busy bands.
+  const arcs: Arc[] = useMemo(() => {
+    const capped = spots.length > 250 ? spots.slice(0, 250) : spots;
+    return capped.map((s) => ({
+      startLat: s.tx_lat,
+      startLng: s.tx_lon,
+      endLat: s.rx_lat,
+      endLng: s.rx_lon,
+      color: bandColor(s.band),
+      observedAt: new Date(s.observed_at).getTime(),
+      id: s.id,
+      spot: s,
+    }));
+  }, [spots]);
 
-  // Listening-post pulse + deduped tx/rx endpoints colored by band.
   const points: PointDatum[] = useMemo(() => {
     const out: PointDatum[] = [
       {
@@ -120,8 +137,16 @@ export default function Globe({
         radius: 0.55,
         altitude: 0.01,
       },
+      {
+        lat: sunPos.lat,
+        lng: sunPos.lon,
+        color: SUN_COLOR,
+        label: "sun",
+        role: "sun",
+        radius: 0.9,
+        altitude: 0.04,
+      },
     ];
-    // Deduplicate tx/rx endpoints so we don't draw thousands of overlapping points.
     const seen = new Set<string>();
     for (const s of spots) {
       const tKey = `T:${s.tx_sign}:${s.tx_lat.toFixed(2)}:${s.tx_lon.toFixed(2)}`;
@@ -152,7 +177,57 @@ export default function Globe({
       }
     }
     return out;
-  }, [spots, listeningPost]);
+  }, [spots, listeningPost, sunPos]);
+
+  // Day/night terminator as a great circle path.
+  const terminator = useMemo(() => {
+    const path = terminatorPath(sunPos, 180);
+    // react-globe.gl's pathsData expects [[lat, lng, alt?], ...] per path.
+    const coords = path.map(([lon, lat]) => [lat, lon, 0.005] as [number, number, number]);
+    return [{ path: coords, color: TERMINATOR_COLOR }];
+  }, [sunPos]);
+
+  // Tick sun position every 60 s.
+  useEffect(() => {
+    const id = setInterval(() => setSunPos(subSolarPoint()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Emit a pulse ring for each *new* spot (realtime arrival).
+  useEffect(() => {
+    if (isFirstSpotsRenderRef.current) {
+      // Skip pulsing for the initial SSR payload — only realtime arrivals pulse.
+      prevSpotIdsRef.current = new Set(spots.map((s) => s.id));
+      isFirstSpotsRenderRef.current = false;
+      return;
+    }
+    const fresh: RingDatum[] = [];
+    for (const s of spots) {
+      if (!prevSpotIdsRef.current.has(s.id)) {
+        fresh.push({
+          id: `${s.id}-${s.rx_lat}-${s.rx_lon}`,
+          lat: s.rx_lat,
+          lng: s.rx_lon,
+          color: bandColor(s.band),
+          createdAt: Date.now(),
+        });
+      }
+    }
+    prevSpotIdsRef.current = new Set(spots.map((s) => s.id));
+    if (fresh.length > 0) {
+      setRings((prev) => [...prev, ...fresh].slice(-50));
+    }
+  }, [spots]);
+
+  // Sweep expired rings.
+  useEffect(() => {
+    if (rings.length === 0) return;
+    const id = setInterval(() => {
+      const cutoff = Date.now() - RING_LIFETIME_MS;
+      setRings((prev) => prev.filter((r) => r.createdAt > cutoff));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [rings.length]);
 
   useLayoutEffect(() => {
     if (!containerRef.current) return;
@@ -173,7 +248,6 @@ export default function Globe({
     };
   }, []);
 
-  // One-time init: camera, controls, and "stop auto-rotate on user interaction".
   useEffect(() => {
     const g = globeRef.current;
     if (!g) return;
@@ -193,7 +267,6 @@ export default function Globe({
     }
   }, [autoRotate, size.w]);
 
-  // Sync autoRotate state into controls whenever it flips.
   useEffect(() => {
     const g = globeRef.current;
     if (!g) return;
@@ -201,7 +274,6 @@ export default function Globe({
     if (controls) controls.autoRotate = autoRotate;
   }, [autoRotate]);
 
-  // Center on listening post once the globe is sized.
   useEffect(() => {
     const g = globeRef.current;
     if (!g || size.w === 0) return;
@@ -211,7 +283,6 @@ export default function Globe({
     );
   }, [listeningPost.lat, listeningPost.lon, size.w]);
 
-  // Fallback if the NASA hi-res image fails to load.
   useEffect(() => {
     if (globeImage !== GLOBE_IMAGE_HIRES) return;
     const img = new Image();
@@ -226,7 +297,6 @@ export default function Globe({
       const g = globeRef.current;
       if (!g) return;
       setAutoRotate(false);
-      // "Listen in" from this arc's receiver.
       onListenAsRx(a.spot.rx_sign, a.spot.rx_lat, a.spot.rx_lon);
       g.pointOfView?.(
         { lat: a.spot.rx_lat, lng: a.spot.rx_lon, altitude: 1.6 },
@@ -241,6 +311,7 @@ export default function Globe({
       const p = pt as PointDatum;
       const g = globeRef.current;
       if (!g) return;
+      if (p.role === "sun") return;
       setAutoRotate(false);
       if (p.role === "rx") onListenAsRx(p.label, p.lat, p.lng);
       else if (p.role === "tx") onTrackTx(p.label, p.lat, p.lng);
@@ -257,6 +328,13 @@ export default function Globe({
       1000,
     );
   }, [homeListeningPost.lat, homeListeningPost.lon]);
+
+  const flyToSun = useCallback(() => {
+    const g = globeRef.current;
+    if (!g) return;
+    setAutoRotate(false);
+    g.pointOfView?.({ lat: sunPos.lat, lng: sunPos.lon, altitude: 2.2 }, 1200);
+  }, [sunPos.lat, sunPos.lon]);
 
   return (
     <div ref={containerRef} className="absolute inset-0 flex items-center justify-center overflow-hidden">
@@ -275,7 +353,7 @@ export default function Globe({
         arcDashLength={0.9}
         arcDashGap={0.2}
         arcDashAnimateTime={3000}
-        arcAltitudeAutoScale={0.5}
+        arcAltitudeAutoScale={0.22}
         arcCircularResolution={64}
         arcsTransitionDuration={0}
         arcLabel={((a: Arc) => arcLabelHtml(a)) as unknown as never}
@@ -289,6 +367,15 @@ export default function Globe({
         pointLabel={((p: PointDatum) => pointLabelHtml(p)) as unknown as never}
         onPointClick={onPointClick}
         pointResolution={16}
+        ringsData={rings}
+        ringLat="lat"
+        ringLng="lng"
+        ringColor={((r: RingDatum) => r.color) as unknown as never}
+        ringMaxRadius={4}
+        ringPropagationSpeed={1.2}
+        ringRepeatPeriod={1400}
+        ringAltitude={0.005}
+        ringResolution={64}
       />
 
       {/* Floating control dock — bottom-right */}
@@ -311,10 +398,17 @@ export default function Globe({
         >
           ⊕ recenter
         </button>
+        <button
+          onClick={flyToSun}
+          className="mono text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded border bg-[color:var(--panel)]/70 backdrop-blur-sm text-[color:var(--muted)] border-[color:var(--border)] hover:text-[color:var(--accent-warm)] hover:border-[color:var(--accent-warm)] transition"
+          title="fly to the sun's subsolar point"
+        >
+          ☀ sun
+        </button>
       </div>
 
       <div className="absolute bottom-3 left-4 z-10 mono text-[10px] text-[color:var(--muted)] pointer-events-none max-w-xs">
-        drag to rotate · scroll to zoom · click an arc to listen in from its receiver
+        drag to rotate · scroll to zoom · click an arc to listen in · the dashed line is the day/night terminator
       </div>
     </div>
   );

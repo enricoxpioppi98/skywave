@@ -7,7 +7,6 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Spot, UserPreferences } from "@/lib/types";
 import { BANDS } from "@/lib/bands";
 import { gridToLatLon } from "@/lib/grid";
-import SpotFeed from "./SpotFeed";
 import StatsPanel from "./StatsPanel";
 
 const Globe = dynamic(() => import("./Globe"), {
@@ -15,6 +14,15 @@ const Globe = dynamic(() => import("./Globe"), {
   loading: () => (
     <div className="flex-1 flex items-center justify-center text-[color:var(--muted)] mono text-sm">
       loading globe…
+    </div>
+  ),
+});
+
+const SpotFeed = dynamic(() => import("./SpotFeed"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex-1 flex items-center justify-center p-6 text-center text-[color:var(--muted)] mono text-xs">
+      loading spots…
     </div>
   ),
 });
