@@ -18,7 +18,7 @@ export default async function LivePage() {
     .select("*")
     .gt("observed_at", since)
     .order("observed_at", { ascending: false })
-    .limit(500);
+    .limit(2000);
 
   return (
     <Dashboard

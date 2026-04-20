@@ -122,7 +122,7 @@ export default function Globe({
 
   // Keep the globe legible even when thousands of spots pile up on busy bands.
   const arcs: Arc[] = useMemo(() => {
-    const capped = spots.length > 250 ? spots.slice(0, 250) : spots;
+    const capped = spots.length > 800 ? spots.slice(0, 800) : spots;
     return capped.map((s) => ({
       startLat: s.tx_lat,
       startLng: s.tx_lon,
@@ -394,10 +394,10 @@ export default function Globe({
         atmosphereAltitude={0.2}
         arcsData={arcs}
         arcColor={((a: Arc) => a.color) as unknown as never}
-        arcStroke={0.35}
-        arcDashLength={0.012}
-        arcDashGap={0.05}
-        arcDashAnimateTime={7000}
+        arcStroke={0.2}
+        arcDashLength={1}
+        arcDashGap={0}
+        arcDashAnimateTime={0}
         arcAltitudeAutoScale={0.22}
         arcCircularResolution={64}
         arcsTransitionDuration={0}
