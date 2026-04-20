@@ -19,9 +19,10 @@ What's actually in the repo today, with pointers to where each piece lives. The 
 
 ### Globe (`apps/web/src/components/Globe.tsx`)
 - `react-globe.gl` + Three.js, hi-res NASA "Black Marble" night texture with bump map; atmosphere glow, graceful fallback to three-globe's bundled texture if the NASA image fails to load.
-- Band-colored animated arcs (tx → rx) with dashed propagation animation. **Arc cap of 250** and **altitude auto-scale of 0.22** keep busy bands legible without overwhelming the GPU.
+- Band-colored tx → rx arcs rendered as **particle streams**: stroke `0.1`, dash `0.002`, gap `0.006` → ~125 micro-particles flowing along each great circle. Arc cap of **800** keeps busy bands legible without overwhelming the GPU.
+- **Stratified altitudes** — per-arc altitude is `0.05 + (dist/20000) * 0.55 + bandBoost`, so similar-distance arcs stratify by band (lower-frequency skip gets a small extra boost) instead of piling on top of each other.
 - **Realtime ring pulses** — every arriving spot from Supabase Realtime bursts an expanding ring at the receiver's coordinates; rings live 5s then sweep. The initial SSR payload is skipped so only truly live arrivals pulse.
-- **Subsolar point** — a sun-colored marker at the lat/lon directly under the sun right now, recomputed every 60s from `apps/web/src/lib/sun.ts` (`subSolarPoint`). Hover label explains what it is.
+- **Subsolar point** — a glowing ☀ rendered via `htmlElementsData` (radial-gradient sun glyph, `box-shadow` halo) at the lat/lon directly under the sun, recomputed every 60s from `apps/web/src/lib/sun.ts` (`subSolarPoint`). Replaces the earlier opaque three.js capsule — hover tooltip explains what it is.
 - **Listening-post marker** — your home grid square glows in accent cyan; persists across peer-lock switches via `homeListeningPost`.
 - **Station points** — every unique tx and rx in view renders as a small dot colored by band; hover reveals callsign + role; click hooks into peer lock.
 - **Interactive controls** — drag to rotate, scroll to zoom, click arc/point to lock. Control dock in bottom-right: auto-rotate toggle, recenter on listening post, fly to sun. Auto-rotate stops automatically on user interaction.
@@ -30,7 +31,8 @@ What's actually in the repo today, with pointers to where each piece lives. The 
 ### Peer lock ("listen in") (`apps/web/src/components/Dashboard.tsx`)
 - Clicking an arc or an rx/tx point sets a `PeerLock` (role `rx` or `tx`, callsign, coords).
 - While a peer is locked: spots filter to that station, the camera flies to it, a banner explains what you're seeing, and the stats panel relabels to "listening as {callsign}" / "tracking {callsign}".
-- Clear button in the banner returns to your home listening post.
+- The banner shows the station's **city + country flag** via `reverseGeocode()` in `apps/web/src/lib/geocode.ts` (BigDataCloud's free client endpoint, in-memory cache keyed to ~0.1° so nearby spots collapse into one lookup).
+- **Multiple ways to clear:** click the same locked station to toggle off, press `Esc`, click empty globe, or hit the clear button in the banner — all return to the home listening post.
 
 ### Space weather widget (`apps/web/src/components/SpaceWeather.tsx`)
 - Polls NOAA SWPC public JSON endpoints (`f107_cm_flux.json`, `planetary_k_index_1m.json`) every 5 min, no auth.
@@ -51,12 +53,13 @@ What's actually in the repo today, with pointers to where each piece lives. The 
 
 ### Worker (`apps/worker/src/`)
 - `index.ts` — two concurrent loops: `pollLoop` (polls wspr.live every `POLL_INTERVAL_SEC`, default 30s) and `retentionLoop` (deletes spots older than `RETENTION_HOURS` every 5 min).
-- `wspr.ts` — HTTP client for the wspr.live ClickHouse HTTP endpoint.
-- `supabase.ts` — service-role client; `upsertSpots` with `onConflict: "id", ignoreDuplicates: true`; `getMaxObservedAt` resumes without gaps on restart.
+- `wspr.ts` — HTTP client for the wspr.live ClickHouse HTTP endpoint. `fetchRecentSpots(lookbackSec, limit)` runs a **sliding 3-min window** query (`WHERE time > now() - interval 180 second`) rather than a cursor-based `time > last_seen`. The cursor-based version silently dropped >99% of WSPR traffic under real load because wspr.live publishes spots in minute-aligned batches with variable latency — any spot whose `time` fell earlier than our advanced cursor was gone forever. The sliding window + upsert-ignore-by-id is idempotent and catches late arrivals. See commit `21d1a50`.
+- `supabase.ts` — service-role client; `upsertSpots` with `onConflict: "id", ignoreDuplicates: true`.
 - Exponential backoff up to 5 min on errors; SIGTERM/SIGINT shutdown handlers for clean Railway restarts.
 
 ### Band catalog (`apps/web/src/lib/bands.ts`)
-- 13 bands from LF/MF (`band=0`) through 2m (`band=144`), each with a wavelength name, nominal MHz, and a perceptually-ordered color (warm for low freq, cool for high). Default favorites: 40m / 30m / 20m.
+- 13 bands from LF/MF (`band=0`) through 2m (`band=144`), each with a wavelength name, nominal MHz, and a color.
+- **Harmonised palette** — all 13 swatches tuned to uniform L\* / chroma on a dark background, with hue walking low-freq → high-freq: violet → rose → peach → butter → lime → mint → aqua → sky → periwinkle. The bands read as one coordinated spectrum instead of 13 arbitrary accents. Default favorites: 40m / 30m / 20m.
 
 ---
 

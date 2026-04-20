@@ -19,11 +19,11 @@ A Node.js worker polls [wspr.live](https://wspr.live) for new reception reports,
 
 ## Features
 
-- **Live globe** with band-colored great-circle arcs from tx → rx, updating in real time via Supabase Realtime.
+- **Live globe** with band-colored great-circle arcs from tx → rx, rendered as streams of ~125 micro-particles each at varied altitudes so overlapping paths stratify by distance and band. Updates in real time via Supabase Realtime.
 - **Realtime ring pulses** bloom at the receiver coordinates the moment each new spot arrives.
-- **Subsolar-point marker** tracks where the sun sits overhead; a "fly to sun" control jumps the camera there.
+- **Subsolar point** — a glowing ☀ element at the lat/lon directly under the sun, recomputed every 60s; a "fly to sun" control jumps the camera there.
 - **Listening post** — pick any Maidenhead grid square as your home; stats and the spot feed orient around it.
-- **Peer lock** — click any arc or station point to "listen in" from that receiver (or track transmissions from that transmitter). The feed and arcs filter to that station until you clear.
+- **Peer lock** — click any arc or station point to "listen in" from that receiver (or track transmissions from that transmitter). The banner shows the station's city + country flag via reverse geocoding. Click the same station to toggle off, press `Esc`, or click empty globe to clear.
 - **Space weather panel** — NOAA SWPC solar flux (F10.7) + planetary Kp index, translated into a plain-English HF-propagation rating (excellent / good / fair / poor / stormy).
 - **Band filter** pills (160m → 2m) with select-all / none; the globe caps visible arcs to keep busy bands legible.
 - **Globe controls** — auto-rotate toggle, recenter on your listening post, fly to sun.
