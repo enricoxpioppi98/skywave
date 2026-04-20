@@ -350,6 +350,11 @@ export default function Globe({
     );
   }, [homeListeningPost.lat, homeListeningPost.lon]);
 
+  // Clicking empty globe (not on a point or arc) clears the peer lock.
+  const onGlobeClick = useCallback(() => {
+    if (peer) onClearPeer();
+  }, [peer, onClearPeer]);
+
   const flyToSun = useCallback(() => {
     const g = globeRef.current;
     if (!g) return;
@@ -379,6 +384,7 @@ export default function Globe({
         arcsTransitionDuration={0}
         arcLabel={((a: Arc) => arcLabelHtml(a)) as unknown as never}
         onArcClick={onArcClick}
+        onGlobeClick={onGlobeClick}
         pointsData={points}
         pointLat="lat"
         pointLng="lng"
@@ -440,7 +446,7 @@ export default function Globe({
       </div>
 
       <div className="absolute bottom-3 left-4 z-10 mono text-[10px] text-[color:var(--muted)] pointer-events-none max-w-xs">
-        drag to rotate · scroll to zoom · click an arc to listen in · the dashed line is the day/night terminator
+        drag to rotate · scroll to zoom · click an arc to listen in · click empty globe or press esc to clear
       </div>
     </div>
   );

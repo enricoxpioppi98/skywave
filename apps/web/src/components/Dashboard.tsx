@@ -99,6 +99,16 @@ export default function Dashboard({
     return () => clearInterval(interval);
   }, []);
 
+  // Esc clears any active peer lock.
+  useEffect(() => {
+    if (!peer) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPeer(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [peer]);
+
   const filtered = useMemo(() => {
     const byBand = spots.filter((s) => selectedBands.has(s.band));
     if (!peer) return byBand;
