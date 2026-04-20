@@ -1,6 +1,53 @@
 # skywave — Swarm Orchestration
 
-Three waves have run so far (Wave 1: code + configs, Wave 2: live URLs, Wave 3 below: final polish + audit).
+Four waves have run (Wave 1: code + configs, Wave 2: live URLs, Wave 3: audit + health footer + final docs, Wave 4 below: verification + visual audit + desirable polish).
+
+## Wave 4 — submission-ready polish (parallel)
+
+Three agents, disjoint outputs. Two produce reports (no commits), one ships polish commits.
+
+```
+Wave 4
+├── live-verify     → VERIFICATION.md   (new, uncommitted)
+├── visual-audit    → VISUAL_AUDIT.md   (new, uncommitted)
+└── polish          → layout.tsx, globals.css, Globe.tsx, Dashboard.tsx,
+                      new GlobeBoundary.tsx, new public/favicon.svg,
+                      one git commit on main
+```
+
+Invocation:
+
+```bash
+cd "/Users/enrico/Projects/Design, Build, Ship/Assignment 4/skywave"
+
+claude -p "$(cat .agents/live-verify.md)" \
+  --allowedTools Read,Write,Edit,Grep,Glob,Bash \
+  > .agents/logs/live-verify.log 2>&1 &
+
+claude -p "$(cat .agents/visual-audit.md)" \
+  --allowedTools Read,Write,Edit,Grep,Glob,Bash \
+  > .agents/logs/visual-audit.log 2>&1 &
+
+claude -p "$(cat .agents/polish.md)" \
+  --allowedTools Read,Write,Edit,Grep,Glob,Bash \
+  > .agents/logs/polish.log 2>&1 &
+
+wait
+echo "Wave 4 complete."
+cat VERIFICATION.md
+cat VISUAL_AUDIT.md
+git log --oneline | head -3
+```
+
+After Wave 4:
+- Skim `VERIFICATION.md` — expect ✅ across HTTP / backend / RLS / build.
+- Skim `VISUAL_AUDIT.md` — expect a short "recommended polish" list.
+- `git push` to ship the polish commit.
+- Record the 2–3 min video; talking points are in `ASSESSMENT.md`.
+
+---
+
+
 
 ## Wave 3 — assignment-ready (parallel)
 
