@@ -8,8 +8,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!user) redirect("/login");
 
   return (
-    <div className="flex-1 flex flex-col">
-      <header className="px-6 py-4 flex items-center justify-between border-b border-[color:var(--border)] bg-[color:var(--panel)]/50 backdrop-blur-sm">
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+      <header className="px-6 py-4 flex items-center justify-between border-b border-[color:var(--border)] bg-[color:var(--panel)]/50 backdrop-blur-sm shrink-0">
         <Link href="/app" className="flex items-center gap-3">
           <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[color:var(--accent)] to-[color:var(--accent-warm)]" />
           <span className="mono text-sm tracking-widest uppercase">skywave</span>

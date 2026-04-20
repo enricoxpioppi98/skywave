@@ -127,9 +127,9 @@ export default function Dashboard({
   const clearPeer = useCallback(() => setPeer(null), []);
 
   return (
-    <main className="flex-1 flex flex-col md:flex-row overflow-hidden">
-      <aside className="md:w-80 md:border-r border-[color:var(--border)] bg-[color:var(--panel)]/30 flex flex-col max-h-[40vh] md:max-h-none">
-        <div className="px-4 py-3 border-b border-[color:var(--border)] flex items-center justify-between">
+    <main className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
+      <aside className="md:w-80 md:border-r border-[color:var(--border)] bg-[color:var(--panel)]/30 flex flex-col min-h-0 max-h-[40vh] md:max-h-none md:h-full">
+        <div className="px-4 py-3 border-b border-[color:var(--border)] flex items-center justify-between shrink-0">
           <h2 className="mono text-xs uppercase tracking-widest text-[color:var(--muted)]">
             live spots
           </h2>
@@ -138,7 +138,7 @@ export default function Dashboard({
         <SpotFeed spots={filtered} />
       </aside>
 
-      <section className="flex-1 relative flex flex-col min-h-[50vh]">
+      <section className="flex-1 relative flex flex-col min-h-[50vh] md:min-h-0">
         {/* Peer-lock banner */}
         {peer && <PeerBanner peer={peer} onClear={clearPeer} />}
 
@@ -184,7 +184,7 @@ export default function Dashboard({
         />
       </section>
 
-      <aside className="md:w-72 md:border-l border-[color:var(--border)] bg-[color:var(--panel)]/30 flex flex-col overflow-y-auto">
+      <aside className="md:w-72 md:border-l border-[color:var(--border)] bg-[color:var(--panel)]/30 flex flex-col min-h-0 md:h-full overflow-y-auto">
         <SpaceWeather />
         <div className="px-4 py-3 border-b border-[color:var(--border)] flex items-center justify-between">
           <h2 className="mono text-xs uppercase tracking-widest text-[color:var(--muted)]">
