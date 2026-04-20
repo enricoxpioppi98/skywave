@@ -7,6 +7,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Spot, UserPreferences } from "@/lib/types";
 import { BANDS } from "@/lib/bands";
 import { gridToLatLon } from "@/lib/grid";
+import { reverseGeocode, formatGeo, flag, type GeoInfo } from "@/lib/geocode";
 import StatsPanel from "./StatsPanel";
 import SpaceWeather from "./SpaceWeather";
 
@@ -217,6 +218,24 @@ function StatusDot({ status }: { status: "connecting" | "live" | "error" }) {
 }
 
 function PeerBanner({ peer, onClear }: { peer: PeerLock; onClear: () => void }) {
+  const [geo, setGeo] = useState<GeoInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setGeo(null);
+    reverseGeocode(peer.lat, peer.lon).then((g) => {
+      if (!cancelled) {
+        setGeo(g);
+        setLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [peer.lat, peer.lon]);
+
   const headline =
     peer.role === "rx"
       ? `listening in from ${peer.sign}`
@@ -225,6 +244,7 @@ function PeerBanner({ peer, onClear }: { peer: PeerLock; onClear: () => void }) 
     peer.role === "rx"
       ? "showing only spots this station is receiving"
       : "showing only spots this station is transmitting";
+
   return (
     <div className="absolute top-14 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3 px-4 py-2 rounded-md bg-[color:var(--panel)]/80 border border-[color:var(--accent)] backdrop-blur-sm shadow-lg shadow-[color:var(--accent)]/10 animate-fade-in">
       <div className="flex flex-col">
@@ -232,6 +252,22 @@ function PeerBanner({ peer, onClear }: { peer: PeerLock; onClear: () => void }) 
           {headline}
         </span>
         <span className="mono text-[10px] text-[color:var(--muted)]">{sub}</span>
+        <span className="mono text-[10px] text-[color:var(--foreground)] mt-0.5 flex items-center gap-1">
+          <span aria-hidden>📍</span>
+          {loading ? (
+            <span className="text-[color:var(--muted)]">locating…</span>
+          ) : (
+            <>
+              {geo && flag(geo.countryCode) && (
+                <span>{flag(geo.countryCode)}</span>
+              )}
+              <span>{geo ? formatGeo(geo) : "unknown location"}</span>
+              <span className="text-[color:var(--muted)] ml-1">
+                {peer.lat.toFixed(2)}°, {peer.lon.toFixed(2)}°
+              </span>
+            </>
+          )}
+        </span>
       </div>
       <button
         onClick={onClear}
