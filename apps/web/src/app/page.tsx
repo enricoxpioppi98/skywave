@@ -1,65 +1,58 @@
-import Image from "next/image";
+import Link from "next/link";
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="flex-1 flex flex-col">
+      <header className="px-8 py-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[color:var(--accent)] to-[color:var(--accent-warm)] animate-pulse" />
+          <span className="mono text-lg tracking-wider uppercase">skywave</span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <Link
+          href="/login"
+          className="mono text-sm text-[color:var(--muted)] hover:text-[color:var(--accent)] transition"
+        >
+          sign in →
+        </Link>
+      </header>
+
+      <section className="flex-1 flex flex-col justify-center px-8 pb-24 max-w-4xl mx-auto w-full">
+        <p className="mono text-xs uppercase tracking-[0.3em] text-[color:var(--accent)] mb-6">
+          Real-time HF propagation map
+        </p>
+        <h1 className="text-5xl md:text-7xl font-semibold leading-[1.05] tracking-tight mb-8">
+          Watch the ionosphere
+          <br />
+          <span className="text-[color:var(--muted)]">reshape itself,</span> live.
+        </h1>
+        <p className="text-lg text-[color:var(--muted)] max-w-2xl leading-relaxed mb-10">
+          Amateur radio operators around the world transmit tiny beacons — under a watt — on
+          specific shortwave frequencies. Other stations decode them. Every successful reception
+          is a signal that bounced through the sky, off a layer of atmosphere charged by the sun.
+          <br /><br />
+          skywave plots them, live, as they arrive.
+        </p>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/login"
+            className="mono text-sm px-5 py-3 bg-[color:var(--accent)] text-black rounded-md font-medium hover:bg-white transition"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
+            sign in with email
+          </Link>
           <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+            href="https://wspr.live"
             target="_blank"
-            rel="noopener noreferrer"
+            rel="noreferrer"
+            className="mono text-sm px-5 py-3 border border-[color:var(--border)] text-[color:var(--muted)] hover:text-[color:var(--accent)] hover:border-[color:var(--accent)] rounded-md transition"
           >
-            Documentation
+            data source ↗
           </a>
         </div>
-      </main>
-    </div>
+      </section>
+
+      <footer className="px-8 py-6 mono text-xs text-[color:var(--muted)] border-t border-[color:var(--border)]">
+        MPCS 51238 · Design, Build, Ship · Spring 2026
+      </footer>
+    </main>
   );
 }
