@@ -1,6 +1,53 @@
 # skywave — Swarm Orchestration
 
-Four-agent Wave 1 runs in parallel, all writing to disjoint files. After a short human deploy step, a single Wave-2 agent injects the live URLs.
+Three waves have run so far (Wave 1: code + configs, Wave 2: live URLs, Wave 3 below: final polish + audit).
+
+## Wave 3 — assignment-ready (parallel)
+
+Three agents, disjoint files.
+
+```
+Wave 3
+├── assessment           → ASSESSMENT.md  (new, uncommitted report)
+├── final-docs           → README.md, CLAUDE.md
+└── worker-health-footer → apps/web/src/components/WorkerHealth.tsx (new),
+                           apps/web/src/components/Dashboard.tsx
+```
+
+Invocation:
+
+```bash
+cd "/Users/enrico/Projects/Design, Build, Ship/Assignment 4/skywave"
+
+claude -p "$(cat .agents/assessment.md)" \
+  --allowedTools Read,Write,Edit,Grep,Glob,Bash \
+  > .agents/logs/assessment.log 2>&1 &
+
+claude -p "$(cat .agents/final-docs.md)" \
+  --allowedTools Read,Write,Edit,Grep,Glob,Bash \
+  > .agents/logs/final-docs.log 2>&1 &
+
+claude -p "$(cat .agents/worker-health-footer.md)" \
+  --allowedTools Read,Write,Edit,Grep,Glob,Bash \
+  > .agents/logs/worker-health-footer.log 2>&1 &
+
+wait
+echo "Wave 3 complete."
+git log --oneline | head -6
+cat ASSESSMENT.md | head -40
+```
+
+After the wave completes:
+- Read `ASSESSMENT.md` for a rubric-by-rubric status and any action items.
+- If the health footer needs tuning or the docs missed something, make targeted edits.
+- `git push`.
+- Record the 2–3 min Slack video (the assessment report will surface 3–5 talking points).
+
+---
+
+# Earlier waves (for reference)
+
+Four-agent Wave 1 ran in parallel, all writing to disjoint files. After a short human deploy step, a single Wave-2 agent injected the live URLs.
 
 ## Wave diagram
 
