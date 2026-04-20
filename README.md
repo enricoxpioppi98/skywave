@@ -6,8 +6,8 @@
 
 ## Live URLs
 
-- Web (Vercel): _pending_
-- Worker (Railway): _pending_
+- Web (Vercel): https://skywave-web-one.vercel.app
+- Worker (Railway): https://railway.com/project/33a51341-1a56-4f88-a134-d2d576835b40
 
 ## Architecture
 

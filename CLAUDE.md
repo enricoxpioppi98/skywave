@@ -6,6 +6,13 @@ A real-time visualization of amateur radio HF propagation through the Earth's io
 
 ---
 
+## Live URLs
+
+- Vercel: https://skywave-web-one.vercel.app
+- Railway: https://railway.com/project/33a51341-1a56-4f88-a134-d2d576835b40
+
+---
+
 ## Shipped features
 
 What's actually in the repo today, with pointers to where each piece lives. The original architecture in §1–§11 below is the blueprint; this section is the reality check.
