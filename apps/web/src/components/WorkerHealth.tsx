@@ -4,13 +4,45 @@ import { useEffect, useMemo, useState } from "react";
 import type { Spot } from "@/lib/types";
 
 const FIVE_MIN_MS = 5 * 60 * 1000;
+const WSPR_PROBE_INTERVAL_MS = 2 * 60 * 1000;
+const WSPR_STALL_THRESHOLD_SEC = 15 * 60;
 
 export default function WorkerHealth({ spots }: { spots: Spot[] }) {
   const [now, setNow] = useState<number | null>(null);
+  const [upstreamAgeSec, setUpstreamAgeSec] = useState<number | null>(null);
   useEffect(() => {
     setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 5_000);
     return () => clearInterval(id);
+  }, []);
+
+  // Probe wspr.live directly so we can distinguish "our worker is broken"
+  // from "the upstream feed is stalled" — otherwise an empty globe looks
+  // like a skywave bug when the source itself has gone quiet.
+  useEffect(() => {
+    let cancelled = false;
+    const probe = async () => {
+      try {
+        const sql = "SELECT max(time) FROM wspr.rx FORMAT TabSeparated";
+        const res = await fetch(
+          `https://db1.wspr.live/?query=${encodeURIComponent(sql)}`,
+          { signal: AbortSignal.timeout(10_000) },
+        );
+        if (!res.ok) return;
+        const text = (await res.text()).trim();
+        const ts = Date.parse(text.replace(" ", "T") + "Z");
+        if (Number.isNaN(ts) || cancelled) return;
+        setUpstreamAgeSec(Math.max(0, Math.floor((Date.now() - ts) / 1000)));
+      } catch {
+        // Transient network/CORS error — keep the prior reading.
+      }
+    };
+    probe();
+    const id = setInterval(probe, WSPR_PROBE_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, []);
 
   const { lastSpotAgeSec, spotsInLast5Min, uniqueStations } = useMemo(() => {
@@ -35,32 +67,43 @@ export default function WorkerHealth({ spots }: { spots: Spot[] }) {
     };
   }, [spots, now]);
 
-  const color =
-    lastSpotAgeSec == null || lastSpotAgeSec >= 180
+  const upstreamStalled =
+    upstreamAgeSec != null && upstreamAgeSec >= WSPR_STALL_THRESHOLD_SEC;
+
+  const color = upstreamStalled
+    ? "var(--accent-hot)"
+    : lastSpotAgeSec == null || lastSpotAgeSec >= 180
       ? "var(--accent-hot)"
       : lastSpotAgeSec >= 60
         ? "var(--accent-warm)"
         : "var(--accent)";
 
-  const ageLabel = lastSpotAgeSec == null ? "no data" : `last spot ${formatAge(lastSpotAgeSec)} ago`;
+  const label = upstreamStalled ? "source" : "worker";
+
+  const message = upstreamStalled
+    ? `wspr.live stalled · upstream ${formatAge(upstreamAgeSec!)} behind`
+    : now == null
+      ? "…"
+      : `${lastSpotAgeSec == null ? "no data" : `last spot ${formatAge(lastSpotAgeSec)} ago`} · ${spotsInLast5Min.toLocaleString()} spots/5m · ${uniqueStations.toLocaleString()} stations`;
 
   return (
     <div
       className="px-4 py-2 border-b border-[color:var(--border)] flex items-center gap-2 mono text-[10px]"
       suppressHydrationWarning
+      title={
+        upstreamStalled
+          ? "the public WSPR data source has stopped publishing recent spots — this is an upstream issue, not a skywave bug"
+          : undefined
+      }
     >
       <span
         className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0"
         style={{ backgroundColor: color }}
       />
       <span className="uppercase tracking-wider" style={{ color }}>
-        worker
+        {label}
       </span>
-      <span className="text-[color:var(--muted)] truncate">
-        {now == null
-          ? "…"
-          : `${ageLabel} · ${spotsInLast5Min.toLocaleString()} spots/5m · ${uniqueStations.toLocaleString()} stations`}
-      </span>
+      <span className="text-[color:var(--muted)] truncate">{message}</span>
     </div>
   );
 }
