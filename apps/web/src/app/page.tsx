@@ -8,12 +8,20 @@ export default function LandingPage() {
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[color:var(--accent)] to-[color:var(--accent-warm)] animate-pulse" />
           <span className="mono text-lg tracking-wider uppercase">skywave</span>
         </div>
-        <Link
-          href="/login"
-          className="mono text-sm text-[color:var(--muted)] hover:text-[color:var(--accent)] transition"
-        >
-          sign in →
-        </Link>
+        <nav className="flex items-center gap-5">
+          <Link
+            href="/about"
+            className="mono text-sm text-[color:var(--muted)] hover:text-[color:var(--accent)] transition"
+          >
+            about
+          </Link>
+          <Link
+            href="/login"
+            className="mono text-sm text-[color:var(--muted)] hover:text-[color:var(--accent)] transition"
+          >
+            sign in →
+          </Link>
+        </nav>
       </header>
 
       <section className="flex-1 flex flex-col justify-center px-8 pb-24 max-w-4xl mx-auto w-full">
@@ -39,14 +47,12 @@ export default function LandingPage() {
           >
             sign in with email
           </Link>
-          <a
-            href="https://wspr.live"
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            href="/about"
             className="mono text-sm px-5 py-3 border border-[color:var(--border)] text-[color:var(--muted)] hover:text-[color:var(--accent)] hover:border-[color:var(--accent)] rounded-md transition"
           >
-            data source ↗
-          </a>
+            what is this?
+          </Link>
         </div>
       </section>
 

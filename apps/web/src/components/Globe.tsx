@@ -120,10 +120,21 @@ export default function Globe({
   const [globeImage, setGlobeImage] = useState(GLOBE_IMAGE_HIRES);
   const [sunPos, setSunPos] = useState(() => subSolarPoint());
   const [rings, setRings] = useState<RingDatum[]>([]);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReducedMotion(mq.matches);
+    const onChange = () => setReducedMotion(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const arcCap = reducedMotion ? 400 : 800;
 
   // Keep the globe legible even when thousands of spots pile up on busy bands.
   const arcs: Arc[] = useMemo(() => {
-    const capped = spots.length > 800 ? spots.slice(0, 800) : spots;
+    const capped = spots.length > arcCap ? spots.slice(0, arcCap) : spots;
     return capped.map((s) => {
       // Altitude varies by distance AND band so overlapping great-circles
       // don't all sit at the same height. Lower-frequency bands (longer
@@ -144,7 +155,7 @@ export default function Globe({
         spot: s,
       };
     });
-  }, [spots]);
+  }, [spots, arcCap]);
 
   const points: PointDatum[] = useMemo(() => {
     const out: PointDatum[] = [
@@ -256,7 +267,7 @@ export default function Globe({
     }
     prevSpotIdsRef.current = new Set(spots.map((s) => s.id));
     if (fresh.length > 0) {
-      setRings((prev) => [...prev, ...fresh].slice(-50));
+      setRings((prev) => [...prev, ...fresh].slice(-25));
     }
   }, [spots]);
 
@@ -406,11 +417,11 @@ export default function Globe({
         arcsData={arcs}
         arcColor={((a: Arc) => a.color) as unknown as never}
         arcStroke={0.1}
-        arcDashLength={0.002}
-        arcDashGap={0.006}
-        arcDashAnimateTime={7000}
+        arcDashLength={0.003}
+        arcDashGap={0.009}
+        arcDashAnimateTime={reducedMotion ? 0 : 7000}
         arcAltitude={((a: Arc) => a.altitude) as unknown as never}
-        arcCircularResolution={64}
+        arcCircularResolution={48}
         arcsTransitionDuration={0}
         arcLabel={((a: Arc) => arcLabelHtml(a)) as unknown as never}
         onArcClick={onArcClick}
@@ -423,7 +434,7 @@ export default function Globe({
         pointAltitude={((p: PointDatum) => p.altitude) as unknown as never}
         pointLabel={((p: PointDatum) => pointLabelHtml(p)) as unknown as never}
         onPointClick={onPointClick}
-        pointResolution={16}
+        pointResolution={8}
         htmlElementsData={sunElements}
         htmlLat="lat"
         htmlLng="lng"
@@ -436,9 +447,9 @@ export default function Globe({
         ringColor={((r: RingDatum) => r.color) as unknown as never}
         ringMaxRadius={4}
         ringPropagationSpeed={1.2}
-        ringRepeatPeriod={1400}
+        ringRepeatPeriod={900}
         ringAltitude={0.005}
-        ringResolution={64}
+        ringResolution={32}
         pathsData={terminator}
         pathPoints="path"
         pathPointLat={((pt: [number, number, number]) => pt[0]) as unknown as never}

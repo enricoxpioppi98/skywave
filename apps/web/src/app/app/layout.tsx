@@ -17,6 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <nav className="flex items-center gap-5 mono text-xs text-[color:var(--muted)]">
           <Link href="/app" className="hover:text-[color:var(--accent)]">live</Link>
           <Link href="/app/settings" className="hover:text-[color:var(--accent)]">settings</Link>
+          <Link href="/about" className="hover:text-[color:var(--accent)]">about</Link>
           <span className="text-[color:var(--border)]">|</span>
           <span className="text-[color:var(--muted)]">{user.email}</span>
           <form action="/auth/signout" method="post">
