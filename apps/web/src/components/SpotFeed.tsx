@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import type { Spot } from "@/lib/types";
 import { bandColor, bandLabel } from "@/lib/bands";
 
-export default function SpotFeed({ spots }: { spots: Spot[] }) {
+export default function SpotFeed({
+  spots,
+  upstreamStalled = false,
+}: {
+  spots: Spot[];
+  upstreamStalled?: boolean;
+}) {
   // Relative times depend on the wall clock, which causes SSR/CSR hydration
   // mismatches. Track a client-only "now" that starts as null, populates on
   // mount, and ticks every 5s so timestamps stay fresh.
@@ -17,14 +23,38 @@ export default function SpotFeed({ spots }: { spots: Spot[] }) {
 
   if (spots.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center p-6 text-center text-[color:var(--muted)] mono text-xs">
-        no spots yet on the selected bands — waiting for data…
+      <div className="flex-1 flex items-center justify-center p-6 text-center mono text-xs">
+        {upstreamStalled ? (
+          <div className="flex flex-col items-center gap-1.5">
+            <span className="text-[color:var(--accent-hot)] uppercase tracking-wider">
+              ⚠ wspr.live source stalled
+            </span>
+            <span className="text-[color:var(--muted)]">
+              the upstream WSPR feed has stopped publishing
+              <br />
+              new spots will appear once it recovers
+            </span>
+          </div>
+        ) : (
+          <span className="text-[color:var(--muted)]">
+            no spots yet on the selected bands — waiting for data…
+          </span>
+        )}
       </div>
     );
   }
 
   return (
-    <ul className="flex-1 overflow-y-auto divide-y divide-[color:var(--border)]">
+    <>
+      {upstreamStalled && (
+        <div
+          className="px-4 py-2 border-b border-[color:var(--accent-hot)]/40 bg-[color:var(--accent-hot)]/10 mono text-[10px] text-[color:var(--accent-hot)] uppercase tracking-wider shrink-0"
+          title="the public WSPR data source has stopped publishing recent spots — this is an upstream issue, not a skywave bug"
+        >
+          ⚠ wspr.live stalled · feed below may be stale
+        </div>
+      )}
+      <ul className="flex-1 overflow-y-auto divide-y divide-[color:var(--border)]">
       {spots.slice(0, 200).map((s) => (
         <li key={s.id} className="px-4 py-2.5 hover:bg-[color:var(--panel-2)]/50 transition animate-fade-in">
           <div className="flex items-center justify-between gap-3">
@@ -59,6 +89,7 @@ export default function SpotFeed({ spots }: { spots: Spot[] }) {
         </li>
       ))}
     </ul>
+    </>
   );
 }
 

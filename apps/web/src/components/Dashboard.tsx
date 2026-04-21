@@ -8,6 +8,7 @@ import type { Spot, UserPreferences } from "@/lib/types";
 import { BANDS } from "@/lib/bands";
 import { gridToLatLon } from "@/lib/grid";
 import { reverseGeocode, formatGeo, flag, type GeoInfo } from "@/lib/geocode";
+import { useWsprUpstreamAgeSec, WSPR_STALL_THRESHOLD_SEC } from "@/lib/wspr-upstream";
 import StatsPanel from "./StatsPanel";
 import SpaceWeather from "./SpaceWeather";
 import WorkerHealth from "./WorkerHealth";
@@ -58,6 +59,9 @@ export default function Dashboard({
   const [status, setStatus] = useState<"connecting" | "live" | "error">("connecting");
   const [peer, setPeer] = useState<PeerLock | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const upstreamAgeSec = useWsprUpstreamAgeSec();
+  const upstreamStalled =
+    upstreamAgeSec != null && upstreamAgeSec >= WSPR_STALL_THRESHOLD_SEC;
 
   const homeListeningPost = useMemo(
     () => gridToLatLon(prefs.listening_post_grid) ?? { lat: 0, lon: 0 },
@@ -150,7 +154,7 @@ export default function Dashboard({
           </h2>
           <StatusDot status={status} />
         </div>
-        <SpotFeed spots={filtered} />
+        <SpotFeed spots={filtered} upstreamStalled={upstreamStalled} />
       </aside>
 
       <section className="flex-1 relative flex flex-col min-h-[50vh] md:min-h-0">
@@ -209,7 +213,7 @@ export default function Dashboard({
 
       <aside className="md:w-72 md:border-l border-[color:var(--border)] bg-[color:var(--panel)]/30 flex flex-col min-h-0 md:h-full overflow-y-auto">
         <SpaceWeather />
-        <WorkerHealth spots={spots} />
+        <WorkerHealth spots={spots} upstreamAgeSec={upstreamAgeSec} />
         <div className="px-4 py-3 border-b border-[color:var(--border)] flex items-center justify-between">
           <h2 className="mono text-xs uppercase tracking-widest text-[color:var(--muted)]">
             activity
