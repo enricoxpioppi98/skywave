@@ -462,6 +462,7 @@ export default function Globe({
             borderColor: autoRotate ? "var(--accent)" : "var(--border)",
           }}
           title={autoRotate ? "stop rotation" : "auto-rotate"}
+          aria-label="toggle auto-rotate"
         >
           {autoRotate ? "◐ rotating" : "◐ paused"}
         </button>
@@ -469,6 +470,7 @@ export default function Globe({
           onClick={recenterOnListeningPost}
           className="mono text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded border bg-[color:var(--panel)]/70 backdrop-blur-sm text-[color:var(--muted)] border-[color:var(--border)] hover:text-[color:var(--accent)] hover:border-[color:var(--accent)] transition"
           title="recenter on your listening post"
+          aria-label="recenter on listening post"
         >
           ⊕ recenter
         </button>
@@ -476,6 +478,7 @@ export default function Globe({
           onClick={flyToSun}
           className="mono text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded border bg-[color:var(--panel)]/70 backdrop-blur-sm text-[color:var(--muted)] border-[color:var(--border)] hover:text-[color:var(--accent-warm)] hover:border-[color:var(--accent-warm)] transition"
           title="fly to the sun's subsolar point"
+          aria-label="fly to subsolar point"
         >
           ☀ sun
         </button>

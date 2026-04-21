@@ -11,6 +11,7 @@ import { reverseGeocode, formatGeo, flag, type GeoInfo } from "@/lib/geocode";
 import StatsPanel from "./StatsPanel";
 import SpaceWeather from "./SpaceWeather";
 import WorkerHealth from "./WorkerHealth";
+import GlobeBoundary from "./GlobeBoundary";
 
 const Globe = dynamic(() => import("./Globe"), {
   ssr: false,
@@ -191,15 +192,17 @@ export default function Dashboard({
           )}
         </div>
 
-        <Globe
-          spots={filtered}
-          listeningPost={activeListeningPost}
-          homeListeningPost={homeListeningPost}
-          peer={peer}
-          onListenAsRx={listenAsRx}
-          onTrackTx={trackTx}
-          onClearPeer={clearPeer}
-        />
+        <GlobeBoundary>
+          <Globe
+            spots={filtered}
+            listeningPost={activeListeningPost}
+            homeListeningPost={homeListeningPost}
+            peer={peer}
+            onListenAsRx={listenAsRx}
+            onTrackTx={trackTx}
+            onClearPeer={clearPeer}
+          />
+        </GlobeBoundary>
       </section>
 
       <aside className="md:w-72 md:border-l border-[color:var(--border)] bg-[color:var(--panel)]/30 flex flex-col min-h-0 md:h-full overflow-y-auto">
