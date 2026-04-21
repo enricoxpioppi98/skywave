@@ -31,7 +31,9 @@ const SpotFeed = dynamic(() => import("./SpotFeed"), {
   ),
 });
 
-const SPOT_WINDOW_MINUTES = 120;
+// Matches worker retention ceiling. Client-side prune is a safety net;
+// the worker itself deletes spots older than this from Postgres every 5 min.
+const SPOT_WINDOW_MINUTES = 360;
 const MAX_SPOTS_IN_MEMORY = 2000;
 
 /** A temporary "what is this station hearing / sending" override. */

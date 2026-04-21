@@ -12,14 +12,13 @@ export default async function LivePage() {
 
   const prefs = await getOrCreatePreferences(supabase, user.id);
 
-  // Keep a 2-hour rolling window so the dashboard still has something to show
-  // during transient upstream outages (wspr.live occasionally goes quiet for
-  // 30–60 min). Client-side prune in Dashboard matches.
-  const since = new Date(Date.now() - 120 * 60 * 1000).toISOString();
+  // Fetch the most recent spots available up to the retention ceiling. Using
+  // a count-based query (not a time-window) so the dashboard stays populated
+  // when wspr.live has a multi-hour outage — we just show whatever's freshest
+  // in our 6-hour retention pool.
   const { data: spots } = await supabase
     .from("spots")
     .select("*")
-    .gt("observed_at", since)
     .order("observed_at", { ascending: false })
     .limit(2000);
 
