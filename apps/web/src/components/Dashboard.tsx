@@ -31,7 +31,7 @@ const SpotFeed = dynamic(() => import("./SpotFeed"), {
   ),
 });
 
-const SPOT_WINDOW_MINUTES = 30;
+const SPOT_WINDOW_MINUTES = 120;
 const MAX_SPOTS_IN_MEMORY = 2000;
 
 /** A temporary "what is this station hearing / sending" override. */

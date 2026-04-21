@@ -12,7 +12,10 @@ export default async function LivePage() {
 
   const prefs = await getOrCreatePreferences(supabase, user.id);
 
-  const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  // Keep a 2-hour rolling window so the dashboard still has something to show
+  // during transient upstream outages (wspr.live occasionally goes quiet for
+  // 30–60 min). Client-side prune in Dashboard matches.
+  const since = new Date(Date.now() - 120 * 60 * 1000).toISOString();
   const { data: spots } = await supabase
     .from("spots")
     .select("*")
